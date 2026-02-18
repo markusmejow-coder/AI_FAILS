@@ -1,6 +1,6 @@
 """
 generate_image.py
-Creates a 1080x1920 (9:16 vertical) fact image for YouTube Shorts.
+Creates a 1080x1920 (9:16 vertical) AI Fail image for YouTube Shorts.
 No external image AI needed — pure Python + Pillow.
 """
 
@@ -82,9 +82,9 @@ def wrap_text(text, font, max_width, draw):
 def create_fact_image(fact_text: str, source_text: str,
                       output_path: str, palette_index: int = None):
     """
-    Creates a 1080x1920 fact image.
-    fact_text  : The main fact (will be auto-wrapped)
-    source_text: Small credit line at bottom e.g. "Source: NASA"
+    Creates a 1080x1920 AI Fail image.
+    fact_text  : The fail description (auto-wrapped)
+    source_text: Small credit line at bottom
     output_path: Where to save the PNG
     palette_index: 0-4, or None for random
     """
@@ -106,9 +106,9 @@ def create_fact_image(fact_text: str, source_text: str,
 
     draw = ImageDraw.Draw(img)
 
-    # ── TOP BADGE ──────────────────────────────────────────────
+    # ── TOP BADGE (GEÄNDERT FÜR AI FAILS) ──────────────────────
     badge_font = ImageFont.truetype(FONT_BOLD, 38)
-    badge_text = "🤯  DID YOU KNOW?"
+    badge_text = "🤖  AI FAIL ALERT"
     bx, by = 80, 120
     r, g, b = palette["accent"]
     # Badge background
@@ -124,7 +124,7 @@ def create_fact_image(fact_text: str, source_text: str,
     # ── ACCENT LINE ────────────────────────────────────────────
     draw_glow_line(draw, palette, 260)
 
-    # ── MAIN FACT TEXT ─────────────────────────────────────────
+    # ── MAIN TEXT ──────────────────────────────────────────────
     fact_font_size = 72
     fact_font = ImageFont.truetype(FONT_BOLD, fact_font_size)
 
@@ -139,7 +139,7 @@ def create_fact_image(fact_text: str, source_text: str,
 
     line_height = fact_font_size + 20
     total_text_h = len(lines) * line_height
-    # Center vertically between line 260 and 1700
+    # Center vertically
     text_y_start = 320 + (1380 - total_text_h) // 2
 
     for i, line in enumerate(lines):
@@ -154,9 +154,9 @@ def create_fact_image(fact_text: str, source_text: str,
     # ── BOTTOM ACCENT LINE ─────────────────────────────────────
     draw_glow_line(draw, palette, 1700)
 
-    # ── CHANNEL TAG ────────────────────────────────────────────
+    # ── CHANNEL TAG (GEÄNDERT FÜR AI FAILS) ────────────────────
     tag_font = ImageFont.truetype(FONT_BOLD, 42)
-    tag_text = "FactDrop  •  New facts every day"
+    tag_text = "AI Fails  •  New glitches every day"
     tbbox = draw.textbbox((0, 0), tag_text, font=tag_font)
     tx = (W - (tbbox[2] - tbbox[0])) // 2
     draw.text((tx, 1740), tag_text, font=tag_font, fill=palette["sub"])
@@ -176,11 +176,10 @@ def create_fact_image(fact_text: str, source_text: str,
 
 
 if __name__ == "__main__":
-    # Quick test
+    # Test
     create_fact_image(
-        "Octopuses have three hearts, blue blood, and can edit their own RNA — making them one of the most alien creatures on Earth.",
-        "Source: Marine Biology Journal",
-        "/home/claude/factbot/output/test_frame.png",
+        "A Google AI once identified a simple turtle as a loaded rifle — and it was 100% sure about it.",
+        "Source: AI Research Glitch",
+        "output/test_ai_fail.png",
         palette_index=0
     )
-    print("Test image created!")
