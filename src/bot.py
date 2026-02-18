@@ -2,7 +2,7 @@
 bot.py
 The main orchestrator — runs the full pipeline:
 1. Generate fact via GPT-4o
-2. Create 1080x1920 image via Pillow
+2. Create 1200x2133 image via Pillow
 3. Render high-quality 30s video via FFmpeg (Local Rendering)
 4. Upload to YouTube as a Short
 5. Log everything & Manage State
@@ -24,7 +24,6 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(__file__))
 
 # Import specialized modules for text and image
-# (Assumes generate_fact.py and generate_image.py exist in the same folder)
 from generate_fact import generate_fact
 from generate_image import create_fact_image
 from youtube_upload import refresh_access_token, upload_short
@@ -66,8 +65,13 @@ def log(message: str, level: str = "INFO"):
     line = f"[{timestamp}] [{level}] {message}"
     print(line)
     try:
-        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(LOG_FILE, "a") as f:
+        # FIX: Symlink auflösen, um 'File exists' Fehler zu vermeiden
+        real_log_dir = os.path.realpath(LOG_FILE.parent)
+        os.makedirs(real_log_dir, exist_ok=True)
+        
+        # In die Datei im echten Verzeichnis schreiben
+        real_log_file = os.path.join(real_log_dir, LOG_FILE.name)
+        with open(real_log_file, "a") as f:
             f.write(line + "\n")
     except Exception:
         pass  # Fail silently on log write to avoid crashing the bot
@@ -76,8 +80,11 @@ def log(message: str, level: str = "INFO"):
 def load_state() -> dict:
     """Loads the last known state from the persistent volume."""
     try:
-        if STATE_FILE.exists():
-            return json.loads(STATE_FILE.read_text())
+        # Auch hier folgen wir dem Symlink sicherheitshalber
+        real_state_file = os.path.realpath(STATE_FILE)
+        if os.path.exists(real_state_file):
+            with open(real_state_file, 'r') as f:
+                return json.load(f)
         return {"last_palette": 0, "total_videos": 0}
     except Exception as e:
         log(f"Could not load state: {e}", "WARN")
@@ -86,8 +93,13 @@ def load_state() -> dict:
 def save_state(state: dict):
     """Saves the current state to the persistent volume."""
     try:
-        STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        STATE_FILE.write_text(json.dumps(state, indent=2))
+        # FIX: Echten Pfad nutzen, um Ordner zu erstellen
+        real_state_dir = os.path.realpath(STATE_FILE.parent)
+        os.makedirs(real_state_dir, exist_ok=True)
+        
+        real_state_file = os.path.join(real_state_dir, STATE_FILE.name)
+        with open(real_state_file, "w") as f:
+            f.write(json.dumps(state, indent=2))
     except Exception as e:
         log(f"Could not save state: {e}", "WARN")
 
