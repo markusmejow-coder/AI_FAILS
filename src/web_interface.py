@@ -23,7 +23,7 @@ HTML_LOGIN = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>FactDrop Bot - Login</title>
+    <title>AI Fails Bot - Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -93,7 +93,7 @@ HTML_LOGIN = """
 </head>
 <body>
     <div class="login-box">
-        <h1>🤯 FactDrop Bot</h1>
+        <h1>🤖 AI Fails Bot</h1>
         <p class="subtitle">Admin Dashboard</p>
         {error}
         <form method="POST" action="/login">
@@ -114,7 +114,7 @@ HTML_DASHBOARD = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>FactDrop Bot - Dashboard</title>
+    <title>🤖 AI Fails Bot - Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -275,7 +275,7 @@ HTML_DASHBOARD = """
 <body>
     <div class="container">
         <div class="header">
-            <h1>🤯 FactDrop Bot</h1>
+            <h1>🤖 AI Fails Bot</h1>
             <p class="subtitle">Admin Dashboard</p>
         </div>
 
@@ -433,7 +433,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             <html>
             <head>
                 <meta name="viewport" content="width=device-width, initial-scale=1">
-                <title>Impressum - FactDrop Bot</title>
+                <title>Impressum - AI FAILS Bot</title>
                 <style>
                     body { font-family: -apple-system, sans-serif; line-height: 1.6; padding: 40px; color: #333; max-width: 600px; margin: auto; }
                     h1 { color: #667eea; border-bottom: 2px solid #eee; padding-bottom: 10px; }
