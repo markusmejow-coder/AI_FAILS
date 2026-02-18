@@ -92,16 +92,10 @@ def save_state(state: dict):
         log(f"Could not save state: {e}", "WARN")
 
 # ── The "Muscle": FFmpeg Rendering Engine ──────────────────────
-def render_robust_video(image_path: str, output_path: str, duration: float = 15.0):
+def render_robust_video(image_path: str, output_path: str, duration: float = 13.0):
     """
-    Renders the video locally using FFmpeg with the 'Anti-Jitter' fix.
-    
-    Args:
-        image_path: Path to the generated PNG.
-        output_path: Path where the MP4 should be saved.
-        duration: Target duration in seconds.
+    Renders the video with high-precision zoom and anti-jitter.
     """
-    
     # 1. Select random background music
     music_file = None
     if ASSETS_DIR.exists():
@@ -110,35 +104,27 @@ def render_robust_video(image_path: str, output_path: str, duration: float = 15.
             music_file = str(random.choice(mp3s))
             log(f"🎵 Selected background music: {Path(music_file).name}")
     
-    # 2. Prepare FFmpeg Command
-    # We use a filter complex to ensure smooth zooming without pixel jitter.
-    # Key fix: s=1080x1920 in zoompan and exact centering logic.
-    
+    # 2. Prepare FFmpeg Params
     fps = 30
     total_frames = int(duration * fps)
     
+    # Der präzise Zoom-Speed Fix gegen Zittern
+    zoom_speed = round(0.08 / total_frames, 8)
+    
     # Base inputs
     inputs = ["-y", "-loop", "1", "-i", image_path]
-    
-    # Add audio input if available
     if music_file:
         inputs.extend(["-i", music_file])
     else:
-        # Generate silent audio if no music found (prevents upload errors)
         inputs.extend(["-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100"])
 
-    # filter_complex string
-    # z='min(zoom+0.0010,1.15)': Very slow, cinematic zoom
-    # x='iw/2-(iw/zoom/2)': Centers X axis perfectly
-    # y='ih/2-(ih/zoom/2)': Centers Y axis perfectly
-    # s=1080x1920: Forces high internal resolution to prevent aliasing/jitter
-    
+    # Filter String: Nutzt das 1200x2133 Bild für perfekte Pixel beim Zoomen
     vf_filter = (
-        f"zoompan=z='min(zoom+0.0010,1.15)':"
+        f"zoompan=z='min(zoom+{zoom_speed},1.08)':"
         f"x='iw/2-(iw/zoom/2)':"
         f"y='ih/2-(ih/zoom/2)':"
         f"d={total_frames}:"
-        f"s=1080x1920,"
+        f"s=1080x1920,"  # Skaliert das High-Res Bild sauber auf die Zielgröße
         f"fps={fps},"
         f"format=yuv420p"
     )
@@ -148,30 +134,23 @@ def render_robust_video(image_path: str, output_path: str, duration: float = 15.
         *inputs,
         "-vf", vf_filter,
         "-c:v", "libx264",
-        "-preset", "medium",   # Balance between speed and compression
-        "-tune", "stillimage", # Optimization for static images
-        "-t", str(duration),   # Exact duration
+        "-preset", "medium",
+        "-tune", "stillimage",
+        "-t", str(duration),
         "-c:a", "aac",
         "-b:a", "192k",
-        "-shortest",           # Stop when the shortest input (video) ends
-        "-pix_fmt", "yuv420p", # Ensure compatibility with all players
+        "-shortest",
+        "-pix_fmt", "yuv420p",
         output_path
     ]
 
-    log(f"🎬 Rendering video with FFmpeg ({duration}s)...")
+    log(f"🎬 Rendering High-Quality video ({duration}s, speed: {zoom_speed})...")
     
     try:
-        # Run FFmpeg and capture output for debugging if needed
-        result = subprocess.run(
-            cmd, 
-            check=True, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        log(f"✅ FFmpeg rendering complete.")
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        log(f"✅ Rendering complete.")
     except subprocess.CalledProcessError as e:
-        log(f"❌ FFmpeg failed with error:\n{e.stderr}", "ERROR")
+        log(f"❌ FFmpeg failed:\n{e.stderr}", "ERROR")
         raise RuntimeError("FFmpeg rendering failed")
 
 # ── Main Pipeline ──────────────────────────────────────────────
