@@ -1,6 +1,6 @@
 """
 generate_fact.py
-Uses OpenAI GPT-4o-mini to generate a fresh, viral-worthy fact.
+Uses OpenAI GPT-4o-mini to generate a fresh, viral-worthy AI Fail.
 Costs ~0.001€ per call.
 """
 
@@ -12,34 +12,34 @@ import random
 from datetime import datetime
 
 
-# Topic rotation — KI wählt täglich automatisch
+# Topic rotation — Speziell für KI-Fehler und Technik-Glitches
 TOPICS = [
-    "space and the universe",
-    "the human body and brain",
-    "animals and nature",
-    "history and ancient civilizations",
-    "technology and AI",
-    "psychology and human behavior",
-    "food and chemistry",
-    "mathematics and physics",
-    "ocean and deep sea creatures",
-    "weird laws and world records",
+    "AI image generation fails (too many fingers)",
+    "funny ChatGPT hallucinations",
+    "self-driving car glitches",
+    "algorithm bias and weird predictions",
+    "chatbot customer service disasters",
+    "facial recognition mistakes",
+    "funny smart home assistant fails",
+    "AI translation errors",
+    "weird AI-generated recipes or art",
+    "social media algorithm glitches",
 ]
 
 
-SYSTEM_PROMPT = """You are a viral YouTube Shorts fact writer.
-Your job: Write ONE mind-blowing, jaw-dropping fact that makes people say "WTF, really?!"
+SYSTEM_PROMPT = """You are a viral YouTube Shorts writer specializing in "AI Fails".
+Your job: Write ONE hilarious or shocking instance where an Artificial Intelligence completely failed or made a ridiculous mistake.
 
 Rules:
-- Start with the most shocking part
+- Start with the most absurd part
 - Maximum 35 words
-- NO emojis in the fact text itself
-- Must be 100% accurate and verifiable
-- Write ONLY the fact, nothing else
-- Make it feel personal: "Your brain...", "Right now...", "Every time you..."
+- NO emojis in the text itself
+- Must be a real, documented or highly relatable AI glitch
+- Write ONLY the fail description, nothing else
+- Make it punchy: "Imagine an AI...", "This chatbot...", "A computer once..."
 
-Bad example: "The octopus is an interesting animal with unique features."
-Good example: "Your brain generates enough electricity while you sleep to power a small lightbulb — and nobody knows exactly why it does this."
+Bad example: "An AI made a mistake in a recipe once which was quite funny."
+Good example: "A Google AI once identified a simple turtle as a loaded rifle — and it was 100% sure about it."
 """
 
 
@@ -50,9 +50,9 @@ def generate_fact(api_key: str, topic: str = None) -> dict:
     if topic is None:
         topic = random.choice(TOPICS)
 
-    user_prompt = f"Write one mind-blowing fact about: {topic}"
+    user_prompt = f"Write one viral AI fail about: {topic}"
 
-    # First call: get the fact
+    # First call: get the fail/fact
     fact_response = _call_gpt(
         api_key=api_key,
         system=SYSTEM_PROMPT,
@@ -63,15 +63,15 @@ def generate_fact(api_key: str, topic: str = None) -> dict:
     fact_text = fact_response.strip().strip('"')
 
     # Second call: generate YouTube metadata
-    meta_prompt = f"""For this YouTube Shorts fact video, write:
-Fact: "{fact_text}"
+    meta_prompt = f"""For this YouTube Shorts AI Fail video, write:
+Fail: "{fact_text}"
 
 Return ONLY valid JSON with these exact keys:
 {{
   "title": "YouTube title max 60 chars, start with emoji, hook first",
-  "description": "2-3 sentences, conversational, end with question to boost comments",
-  "tags": ["tag1", "tag2", "tag3", "tag4", "tag5", "tag6", "tag7", "tag8"],
-  "source": "Short source credit e.g. 'Source: NASA' or 'Source: Nature Journal'"
+  "description": "2-3 sentences about this AI glitch, end with question to boost comments",
+  "tags": ["AI", "Fail", "Tech", "Funny", "Glitches", "Shorts", "Trending", "Algorithm"],
+  "source": "Short source credit e.g. 'Source: Reddit' or 'Source: Tech News'"
 }}"""
 
     meta_response = _call_gpt(
@@ -83,7 +83,6 @@ Return ONLY valid JSON with these exact keys:
 
     # Parse JSON safely
     try:
-        # Strip potential markdown code blocks
         clean = meta_response.strip()
         if clean.startswith("```"):
             clean = clean.split("```")[1]
@@ -91,21 +90,19 @@ Return ONLY valid JSON with these exact keys:
                 clean = clean[4:]
         meta = json.loads(clean.strip())
     except json.JSONDecodeError:
-        # Fallback metadata
         meta = {
-            "title": f"🤯 This fact will blow your mind...",
-            "description": f"{fact_text}\n\nDid you know this? Drop a 🤯 below!",
-            "tags": ["didyouknow", "facts", "mindblown", "learnontiktok",
-                     "shorts", "funfacts", "science", "viral"],
-            "source": "Source: Verified Research"
+            "title": f"🤖 AI Fail: You won't believe this...",
+            "description": f"{fact_text}\n\nIs AI taking over or just failing? 😂",
+            "tags": ["AI", "Fail", "Funny", "Tech", "Shorts"],
+            "source": "Source: AI Archives"
         }
 
     return {
         "fact": fact_text,
         "topic": topic,
-        "title": meta.get("title", "🤯 Mind-blowing fact"),
+        "title": meta.get("title", "🤖 Epic AI Fail"),
         "description": meta.get("description", fact_text),
-        "tags": meta.get("tags", ["facts", "shorts"]),
+        "tags": meta.get("tags", ["AI", "Fail", "Shorts"]),
         "source": meta.get("source", ""),
         "generated_at": datetime.now().isoformat()
     }
@@ -144,8 +141,7 @@ def _call_gpt(api_key: str, system: str, user: str,
 
 
 if __name__ == "__main__":
-    # Test with a dummy key placeholder
-    print("Fact generator ready.")
+    print("AI Fail generator ready.")
     print("Set OPENAI_API_KEY env variable to test.")
     print(f"Available topics: {len(TOPICS)}")
     print(f"Sample topic: {random.choice(TOPICS)}")
