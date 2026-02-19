@@ -1,6 +1,6 @@
 """
 web_interface.py
-Simple web dashboard for FactDrop Bot.
+Simple web dashboard for AI Fails Bot.
 Login: admin / a763763B!
 """
 
@@ -15,6 +15,10 @@ import hashlib
 
 # Password hash (sha256 of "a763763B!")
 PASSWORD_HASH = hashlib.sha256("a763763B!".encode()).hexdigest()
+
+# Pfade für das Archiv
+ARCHIVE_DIR = "/data/archive"
+DB_FILE = os.path.join(ARCHIVE_DIR, "archive.json")
 
 # Simple session management
 sessions = {}
@@ -114,7 +118,7 @@ HTML_DASHBOARD = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>🤖 AI Fails Bot - Dashboard</title>
+    <title>AI Fails Bot - Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -234,7 +238,6 @@ HTML_DASHBOARD = """
         .spinner.active {
             display: block;
         }
-        /* Style für die Live Logs */
         pre {
             background: #1e1e1e;
             color: #d4d4d4;
@@ -246,7 +249,6 @@ HTML_DASHBOARD = """
             line-height: 1.5;
             max-height: 300px;
         }
-        /* Style für Custom Count Input */
         .count-setter {
             margin-top: 10px;
             display: flex;
@@ -275,7 +277,7 @@ HTML_DASHBOARD = """
 <body>
     <div class="container">
         <div class="header">
-            <h1>🤖 AI Fails Bot</h1>
+            <h1>🤯 AI Fails Bot</h1>
             <p class="subtitle">Admin Dashboard</p>
         </div>
 
@@ -400,8 +402,18 @@ HTML_DASHBOARD = """
 """
 
 class DashboardHandler(BaseHTTPRequestHandler):
+    
+    def _get_archive_db(self):
+        """Lädt die archive.json Metadaten-Datenbank."""
+        if os.path.exists(DB_FILE):
+            try:
+                with open(DB_FILE, "r") as f:
+                    return json.load(f)
+            except:
+                return []
+        return []
+
     def do_GET(self):
-        # Parse session cookie
         session_id = self._get_session()
         
         if self.path == "/":
@@ -433,7 +445,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             <html>
             <head>
                 <meta name="viewport" content="width=device-width, initial-scale=1">
-                <title>Impressum - AI FAILS Bot</title>
+                <title>Impressum - AI Fails Bot</title>
                 <style>
                     body { font-family: -apple-system, sans-serif; line-height: 1.6; padding: 40px; color: #333; max-width: 600px; margin: auto; }
                     h1 { color: #667eea; border-bottom: 2px solid #eee; padding-bottom: 10px; }
@@ -516,9 +528,6 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 new_count = int(params.get('count', [0])[0])
 
                 state_path = "/app/logs/state.json"
-                
-                # DER FIX: Wir nutzen realpath, um dem Link zu folgen!
-                # Damit erstellen wir den Ordner auf dem Volume, nicht im Container.
                 real_dir = os.path.realpath(os.path.dirname(state_path))
                 os.makedirs(real_dir, exist_ok=True)
 
@@ -631,22 +640,70 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.wfile.write(html.encode())
 
     def _serve_archive_list(self):
-        archive_dir = "/app/archive"
-        files = sorted(os.listdir(archive_dir), reverse=True) if os.path.exists(archive_dir) else []
-        links = "".join([f'<li><a href="/download/{f}" style="color: #667eea; text-decoration: none; font-weight: bold;">{f}</a></li>' for f in files])
+        """Erweiterte Archiv-Liste mit Metadaten und Copy-Button."""
+        items = self._get_archive_db()
+        # Sortieren: Neueste zuerst
+        items = sorted(items, key=lambda x: x.get('timestamp', ''), reverse=True)
+        
+        rows = ""
+        for item in items:
+            full_meta = f"{item.get('title', '')}\\n\\n{item.get('description', '')}".replace("'", "\\'").replace('"', '&quot;')
+            
+            # NEU: Bild-Button dynamisch einblenden, falls vorhanden
+            image_btn = ""
+            if item.get("image_file"):
+                image_btn = f'<a href="/download/{item["image_file"]}" style="color: #e91e63; text-decoration: none; font-weight: bold; font-size: 14px; margin-left: 15px;">🖼️ Bild</a>'
+            
+            rows += f"""
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 15px; font-size: 14px;">{item.get('timestamp', '')[:10]}</td>
+                <td style="padding: 15px; font-size: 14px;"><b>{item.get('topic', 'General')}</b></td>
+                <td style="padding: 15px;">
+                    <a href="/download/{item.get('video_file', '')}" style="color: #43a047; text-decoration: none; font-weight: bold; font-size: 14px;">🎬 Video</a>
+                    {image_btn}
+                </td>
+                <td style="padding: 15px;">
+                    <button onclick="copyToClipboard('{full_meta}')" style="background: #667eea; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">
+                        📋 Copy Meta
+                    </button>
+                </td>
+            </tr>
+            """
         
         html = f"""
         <html>
-            <head><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-            <body style="font-family: -apple-system, sans-serif; padding: 40px; background: #f5f5f7; color: #333;">
-                <div style="max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title>Video Archiv - AI Fails</title>
+                <style>
+                    body {{ font-family: -apple-system, sans-serif; padding: 20px; background: #f5f5f7; color: #333; }}
+                    .container {{ max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                    table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
+                    th {{ text-align: left; color: #888; font-size: 11px; text-transform: uppercase; padding: 10px; border-bottom: 2px solid #f5f5f7; }}
+                </style>
+                <script>
+                function copyToClipboard(text) {{
+                    const cleanText = text.replace(/\\\\n/g, '\\n');
+                    navigator.clipboard.writeText(cleanText).then(() => {{
+                        alert("Metadaten (Titel & Beschreibung) kopiert!");
+                    }});
+                }}
+                </script>
+            </head>
+            <body>
+                <div class="container">
                     <h1 style="color: #667eea;">📦 Video Archiv</h1>
-                    <p style="color: #888; font-size: 14px; margin-bottom: 20px;">Alle generierten Videos der letzten 30 Tage.</p>
-                    <ul style="line-height: 2.5; font-size: 16px; list-style-type: '🎬 ';">
-                        {links if links else "<li>Noch keine Videos archiviert</li>"}
-                    </ul>
+                    <p style="color: #888; font-size: 14px; margin-bottom: 20px;">Alle generierten Videos der letzten 30 Tage mit Metadaten.</p>
+                    <table>
+                        <thead>
+                            <tr><th>Datum</th><th>Thema</th><th>Video</th><th>Aktion</th></tr>
+                        </thead>
+                        <tbody>
+                            {rows if rows else "<tr><td colspan='4' style='padding:20px; text-align:center; color:#888;'>Noch keine Videos archiviert</td></tr>"}
+                        </tbody>
+                    </table>
                     <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
-                    <a href="/" style="color: #667eea; text-decoration: none; font-weight: bold;">&larr; Zurück zum Dashboard</a>
+                    <a href="/" style="color: #667eea; text-decoration: none; font-weight: bold; font-family: sans-serif;">&larr; Zurück zum Dashboard</a>
                 </div>
             </body>
         </html>
@@ -654,11 +711,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-type", "text/html; charset=utf-8")
         self.end_headers()
-        self.wfile.write(html.encode())
+        self.wfile.write(html.encode('utf-8'))
 
     def _serve_archive_file(self):
         filename = self.path.replace("/download/", "")
-        file_path = os.path.join("/app/archive", filename)
+        file_path = os.path.join(ARCHIVE_DIR, filename)
         if os.path.exists(file_path):
             with open(file_path, 'rb') as f:
                 self.send_response(200)
