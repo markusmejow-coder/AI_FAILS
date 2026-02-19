@@ -49,9 +49,10 @@ def upload_short(video_path: str, title: str, description: str,
     # Wir fügen themenspezifische Tags hinzu und stellen sicher, dass #Shorts enthalten ist
     snippet = {
         "title":       title[:100], 
-        "description": f"{description[:4500]}\n\n#Shorts #MindBlown #Facts #AI",
-        "tags":        tags[:15], # YouTube erlaubt max. 500 Zeichen an Tags insgesamt
-        "categoryId":  "28"  # Science & Technology
+        # description hat die Fails-Tags bereits durch generate_fact.py erhalten!
+        "description": f"{description[:4500]}", 
+        "tags":        tags[:15], 
+        "categoryId":  "28"  # 28 (Science & Tech) oder 23 (Comedy)
     }
     
     # Hier setzen wir die KI-Kennzeichnung auf True
