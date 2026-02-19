@@ -168,7 +168,7 @@ def render_robust_video(image_path: str, output_path: str, duration: float = 13.
 # ── Main Pipeline ──────────────────────────────────────────────
 def run():
     log("=" * 50)
-    log("🚀 FactDrop Bot starting daily run")
+    log("🚀 AI Fails Bot starting daily run")
     log("=" * 50)
 
     config = get_config()
@@ -180,8 +180,8 @@ def run():
 
     # Define temporary file paths (using /tmp for ephemeral storage)
     run_id      = datetime.now().strftime("%Y%m%d_%H%M%S")
-    image_path  = f"/tmp/factdrop_{run_id}.png"
-    video_path  = f"/tmp/factdrop_{run_id}.mp4"
+    image_path  = f"/tmp/aifails_{run_id}.png"
+    video_path  = f"/tmp/aifails_{run_id}.mp4"
 
     try:
         # ── Step 1: Generate Fact (The Brain) ──────────────────
