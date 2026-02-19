@@ -27,7 +27,7 @@ HTML_LOGIN = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>AI Fails Bot - Login</title>
+    <title>🤖 AI Fails Bot - Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -118,7 +118,7 @@ HTML_DASHBOARD = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>AI Fails Bot - Dashboard</title>
+    <title>🤖 AI Fails Bot - Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -173,6 +173,10 @@ HTML_DASHBOARD = """
         }
         .btn:hover {
             transform: translateY(-2px);
+        }
+        .btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
         }
         .status-grid {
             display: grid;
@@ -272,12 +276,17 @@ HTML_DASHBOARD = """
             border-radius: 4px;
             font-weight: bold;
         }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🤯 AI Fails Bot</h1>
+            <h1>🤖 AI Fails Bot</h1>
             <p class="subtitle">Admin Dashboard</p>
         </div>
 
@@ -308,10 +317,12 @@ HTML_DASHBOARD = """
         <div class="card">
             <h2>🚀 Manual Post</h2>
             <div class="info">
-                ⚠️ This will immediately generate and post a new video to your YouTube channel.
-                The bot will continue its normal daily schedule.
+                ⚠️ Du kannst das Video normal generieren lassen, oder einen Testlauf starten, der den YouTube-Upload überspringt.
             </div>
-            <button class="btn" onclick="triggerPost()">Create & Post Video Now</button>
+            <div class="button-group">
+                <button class="btn" onclick="triggerPost(false)">Create & Post Video Now</button>
+                <button class="btn" onclick="triggerPost(true)" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);">Testlauf (Ohne YouTube)</button>
+            </div>
             <div id="spinner" class="spinner">
                 <p>⏳ Generating video... This takes ~30 seconds...</p>
             </div>
@@ -337,23 +348,24 @@ HTML_DASHBOARD = """
     </div>
 
     <script>
-        function triggerPost() {
-            const btn = document.querySelector('.btn');
+        function triggerPost(skipYoutube) {
+            const btns = document.querySelectorAll('.btn');
             const result = document.getElementById('result');
             const spinner = document.getElementById('spinner');
             
-            btn.disabled = true;
-            btn.textContent = 'Processing...';
+            btns.forEach(b => b.disabled = true);
             spinner.classList.add('active');
             result.className = '';
             result.style.display = 'none';
 
-            fetch('/trigger', { method: 'POST' })
+            // Wählt den richtigen Endpunkt basierend auf dem Parameter
+            const endpoint = skipYoutube ? '/trigger_test' : '/trigger';
+
+            fetch(endpoint, { method: 'POST' })
                 .then(r => r.json())
                 .then(data => {
                     spinner.classList.remove('active');
-                    btn.disabled = false;
-                    btn.textContent = 'Create & Post Video Now';
+                    btns.forEach(b => b.disabled = false);
                     
                     if (data.success) {
                         result.className = 'success';
@@ -365,8 +377,7 @@ HTML_DASHBOARD = """
                 })
                 .catch(err => {
                     spinner.classList.remove('active');
-                    btn.disabled = false;
-                    btn.textContent = 'Create & Post Video Now';
+                    btns.forEach(b => b.disabled = false);
                     result.className = 'error';
                     result.innerHTML = '❌ Error: ' + err.message;
                 });
@@ -572,6 +583,41 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     "success": False,
                     "message": str(e)
                 })
+                
+        # --- NEU: Der Testlauf-Endpunkt ---
+        elif self.path == "/trigger_test":
+            if not (session_id and session_id in sessions):
+                self._send_json({"success": False, "message": "Not authenticated"}, 401)
+                return
+            
+            try:
+                result = subprocess.run(
+                    [sys.executable, "/app/src/bot.py", "--skip-youtube"],
+                    capture_output=False,
+                    text=True,
+                    timeout=300
+                )
+                
+                if result.returncode == 0:
+                    self._send_json({
+                        "success": True,
+                        "message": "Test-Video generiert (ohne YouTube Upload)!"
+                    })
+                else:
+                    self._send_json({
+                        "success": False,
+                        "message": "Bot finished with error code."
+                    })
+            except subprocess.TimeoutExpired:
+                self._send_json({
+                    "success": False,
+                    "message": "Timeout - bot took too long"
+                })
+            except Exception as e:
+                self._send_json({
+                    "success": False,
+                    "message": str(e)
+                })
         else:
             self.send_response(404)
             self.end_headers()
@@ -623,7 +669,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
         try:
             with open("/app/logs/bot.log", "r") as f:
-                logs = "".join(f.readlines()[-15:])
+                logs = "".join(f.readlines()[-50:])
         except:
             logs = "Noch keine Logs vorhanden."
         
