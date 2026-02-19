@@ -1,7 +1,8 @@
 FROM python:3.11-slim
 
 RUN apt-get update && apt-get install -y ffmpeg fonts-dejavu fonts-liberation python3-pil && rm -rf /var/lib/apt/lists/*
-RUN pip install --no-cache-dir Pillow==10.3.0 openai==1.30.0
+# Hier sind die neuen Google-Pakete am Ende hinzugefügt:
+RUN pip install --no-cache-dir Pillow==10.3.0 openai==1.30.0 google-api-python-client google-auth-httplib2 google-auth-oauthlib
 
 WORKDIR /app
 
