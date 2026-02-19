@@ -1,7 +1,7 @@
 """
 generate_image.py
 Creates a 1200x2133 (high res) AI Fail image for YouTube Shorts.
-This higher resolution prevents jitter during the FFmpeg zoompan.
+Glitch-optimized color palettes for AI Fails & Glitches.
 """
 
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -16,13 +16,18 @@ FONT_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 # High-Res für Anti-Jitter (Faktor 1.11 zu 1080x1920)
 W, H = 1200, 2133
 
-# Color palettes — KI rotiert automatisch
+# Glitch-Optimized Color Palettes
 PALETTES = [
-    {"bg": (8, 8, 20),    "accent": (120, 80, 255),  "text": (255, 255, 255), "sub": (180, 160, 255)},
-    {"bg": (5, 15, 10),   "accent": (0, 220, 120),   "text": (255, 255, 255), "sub": (150, 255, 200)},
-    {"bg": (20, 5, 5),    "accent": (255, 60, 60),    "text": (255, 255, 255), "sub": (255, 160, 160)},
-    {"bg": (5, 10, 25),   "accent": (0, 180, 255),   "text": (255, 255, 255), "sub": (140, 210, 255)},
-    {"bg": (15, 10, 5),   "accent": (255, 160, 0),   "text": (255, 255, 255), "sub": (255, 210, 120)},
+    # Danger/Warning (Gelb/Schwarz)
+    {"bg": (15, 15, 5),    "accent": (255, 215, 0),  "text": (255, 255, 255), "sub": (255, 235, 120)},
+    # Error/Critical (Rot/Schwarz)
+    {"bg": (20, 5, 5),     "accent": (255, 75, 75),   "text": (255, 255, 255), "sub": (255, 150, 150)},
+    # Cyber Glitch (Neon Pink/Deep Blue)
+    {"bg": (5, 5, 25),     "accent": (255, 0, 255),  "text": (255, 255, 255), "sub": (200, 150, 255)},
+    # Matrix Glitch (Neon Green/Black)
+    {"bg": (2, 10, 5),     "accent": (50, 255, 50),   "text": (255, 255, 255), "sub": (150, 255, 150)},
+    # Void (Deep Purple/Cyan)
+    {"bg": (10, 0, 20),    "accent": (0, 255, 255),   "text": (255, 255, 255), "sub": (150, 255, 255)},
 ]
 
 
@@ -43,6 +48,7 @@ def draw_gradient_bg(img, palette):
     draw = ImageDraw.Draw(img, "RGBA")
     r1, g1, b1 = palette["bg"]
     for y in range(H):
+        # Leichter Sinus-Effekt für mehr Tiefe
         factor = 1.0 + 0.3 * math.sin(math.pi * y / H)
         r = min(255, int(r1 * factor))
         g = min(255, int(g1 * factor))
@@ -91,6 +97,7 @@ def create_fact_image(fact_text: str, source_text: str,
     img = Image.new("RGB", (W, H), palette["bg"])
     draw = draw_gradient_bg(img, palette)
 
+    # Particle Overlay
     overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     odraw = ImageDraw.Draw(overlay)
     draw_particles(odraw, palette)
@@ -101,9 +108,9 @@ def create_fact_image(fact_text: str, source_text: str,
 
     draw = ImageDraw.Draw(img)
 
-    # ── TOP BADGE (Scaled to High-Res) ─────────────────────────
+    # ── TOP BADGE ──────────────────────────────────────────────
     badge_font = ImageFont.truetype(FONT_BOLD, 42)
-    badge_text = "🤖  AI FAIL ALERT"
+    badge_text = "🤖  SYSTEM ERROR: AI FAIL"
     bx, by = 90, 135
     r, g, b = palette["accent"]
     bbox = draw.textbbox((bx, by), badge_text, font=badge_font)
@@ -116,13 +123,14 @@ def create_fact_image(fact_text: str, source_text: str,
 
     draw_glow_line(draw, palette, 290)
 
-    # ── MAIN TEXT ──────────────────────────────────────────────
+    # ── MAIN FAIL TEXT ──────────────────────────────────────────
     fact_font_size = 80
     fact_font = ImageFont.truetype(FONT_BOLD, fact_font_size)
 
     max_text_w = W - 180 
     lines = wrap_text(fact_text, fact_font, max_text_w, draw)
 
+    # Font-Scaling falls der Text zu lang ist
     while len(lines) > 8 and fact_font_size > 54:
         fact_font_size -= 4
         fact_font = ImageFont.truetype(FONT_BOLD, fact_font_size)
@@ -136,14 +144,15 @@ def create_fact_image(fact_text: str, source_text: str,
         y = text_y_start + i * line_height
         bbox = draw.textbbox((0, 0), line, font=fact_font)
         x = (W - (bbox[2] - bbox[0])) // 2
-        draw.text((x+4, y+4), line, font=fact_font, fill=(0, 0, 0, 80))
+        # Drop Shadow
+        draw.text((x+4, y+4), line, font=fact_font, fill=(0, 0, 0, 100))
         draw.text((x, y), line, font=fact_font, fill=palette["text"])
 
     draw_glow_line(draw, palette, 1890)
 
     # ── BRANDING ───────────────────────────────────────────────
     tag_font = ImageFont.truetype(FONT_BOLD, 46)
-    tag_text = "AI Fails  •  New glitches every day"
+    tag_text = "AI Fails & Glitches • Join the Chaos"
     tbbox = draw.textbbox((0, 0), tag_text, font=tag_font)
     tx = (W - (tbbox[2] - tbbox[0])) // 2
     draw.text((tx, 1935), tag_text, font=tag_font, fill=palette["sub"])
@@ -156,13 +165,13 @@ def create_fact_image(fact_text: str, source_text: str,
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     img.save(output_path, "PNG")
-    print(f"  ✅ High-Res Image saved: {output_path}")
+    print(f"  ✅ AI Fail Image saved: {output_path}")
     return output_path
 
 if __name__ == "__main__":
     create_fact_image(
         "A Google AI once identified a simple turtle as a loaded rifle — and it was 100% sure about it.",
         "Source: AI Research Glitch",
-        "output/test_jitter_fix.png",
+        "output/test_fail_image.png",
         palette_index=0
     )
