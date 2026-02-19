@@ -45,7 +45,9 @@ def _upload_to_drive(file_path, filename, mime_type="video/mp4"):
     folder_id = os.getenv('DRIVE_FOLDER_ID')
     client_id = os.getenv('YOUTUBE_CLIENT_ID')
     client_secret = os.getenv('YOUTUBE_CLIENT_SECRET')
-    refresh_token = os.getenv('YOUTUBE_REFRESH_TOKEN')
+    
+    # NEU: Nutze DRIVE_REFRESH_TOKEN falls vorhanden, sonst Fallback auf YOUTUBE_REFRESH_TOKEN
+    refresh_token = os.getenv('DRIVE_REFRESH_TOKEN') or os.getenv('YOUTUBE_REFRESH_TOKEN')
 
     if not all([folder_id, client_id, client_secret, refresh_token]):
         _log_msg(f"⚠️ Drive Upload übersprungen für {filename}: Credentials oder FOLDER_ID fehlen.")
@@ -94,7 +96,7 @@ def move_to_archive(video_path, fact_data, image_path=None):
         real_archive_dir = os.path.realpath(ARCHIVE_DIR)
         os.makedirs(real_archive_dir, exist_ok=True)
         
-        # 1. Video kopieren (Kein extra Zeitstempel mehr, Name kommt fertig aus bot.py!)
+        # 1. Video kopieren
         video_filename = os.path.basename(video_path)
         new_video_name = video_filename
         dest_video_path = os.path.join(real_archive_dir, new_video_name)
@@ -116,12 +118,10 @@ def move_to_archive(video_path, fact_data, image_path=None):
             
         # 3. Temporäre Textdatei für Google Drive erstellen & Hochladen
         try:
-            # Basisname ohne Dateiendung (z.B. 2026-02-19_Mindblown_181453)
             base_name_no_ext = os.path.splitext(video_filename)[0]
             txt_filename = f"{base_name_no_ext}_metadata.txt"
             temp_txt_path = os.path.join("/tmp", txt_filename)
             
-            # Exakt die Daten, die auch der Copy-Button ausgibt, plus Tags
             with open(temp_txt_path, "w", encoding="utf-8") as f:
                 f.write(f"{fact_data.get('title', '')}\n\n")
                 f.write(f"{fact_data.get('description', '')}\n\n")
@@ -133,13 +133,12 @@ def move_to_archive(video_path, fact_data, image_path=None):
             # --- GOOGLE DRIVE UPLOAD: TEXTDATEI ---
             _upload_to_drive(temp_txt_path, txt_filename, "text/plain")
             
-            # WICHTIG: Textdatei lokal sofort wieder löschen! (Dein Archiv bleibt sauber)
             if os.path.exists(temp_txt_path):
                 os.remove(temp_txt_path)
         except Exception as txt_err:
             _log_msg(f"⚠️ Fehler beim Erstellen der Drive-Textdatei: {txt_err}")
         
-        # 4. Metadaten lokal in JSON speichern (für Copy-Button)
+        # 4. Metadaten lokal in JSON speichern
         db = _load_db()
         db.append({
             "timestamp": datetime.now().isoformat(),
@@ -147,7 +146,7 @@ def move_to_archive(video_path, fact_data, image_path=None):
             "image_file": new_image_name,
             "title": fact_data.get("title", ""),
             "description": fact_data.get("description", ""),
-            "topic": fact_data.get("topic", "General")
+            "topic": fact_data.get("topic", "AI Fails")
         })
         _save_db(db)
         
@@ -176,7 +175,7 @@ def cleanup_old_videos(days=30):
                 os.remove(path)
                 _log_msg(f"🧹 Datei gelöscht: {f}")
 
-        # 2. Datenbank aufräumen (nur behalten, was noch als Datei existiert)
+        # 2. Datenbank aufräumen
         for entry in db:
             file_path = os.path.join(real_archive_dir, entry["video_file"])
             if os.path.exists(file_path):
