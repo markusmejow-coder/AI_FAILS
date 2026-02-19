@@ -41,20 +41,21 @@ def _save_db(data):
         json.dump(data, f, indent=4)
 
 def _upload_to_drive(file_path, filename, mime_type="video/mp4"):
-    """Lädt eine Datei per REST API in Google Drive hoch (Resumable Upload)."""
+    """Lädt eine Datei per REST API in Google Drive hoch mit dedizierten Drive-Credentials."""
     folder_id = os.getenv('DRIVE_FOLDER_ID')
-    client_id = os.getenv('YOUTUBE_CLIENT_ID')
-    client_secret = os.getenv('YOUTUBE_CLIENT_SECRET')
     
-    # NEU: Nutze DRIVE_REFRESH_TOKEN falls vorhanden, sonst Fallback auf YOUTUBE_REFRESH_TOKEN
+    # LOGIK: Nutze DRIVE-spezifische Keys (vom Hauptkonto), 
+    # falls nicht vorhanden, Fallback auf YouTube-Keys (vom Brand-Kanal)
+    client_id = os.getenv('DRIVE_CLIENT_ID') or os.getenv('YOUTUBE_CLIENT_ID')
+    client_secret = os.getenv('DRIVE_CLIENT_SECRET') or os.getenv('YOUTUBE_CLIENT_SECRET')
     refresh_token = os.getenv('DRIVE_REFRESH_TOKEN') or os.getenv('YOUTUBE_REFRESH_TOKEN')
 
     if not all([folder_id, client_id, client_secret, refresh_token]):
-        _log_msg(f"⚠️ Drive Upload übersprungen für {filename}: Credentials oder FOLDER_ID fehlen.")
+        _log_msg(f"⚠️ Drive Upload übersprungen für {filename}: Fehlende Credentials.")
         return
 
     try:
-        # 1. Frischen Access Token holen
+        # 1. Frischen Access Token holen (mit den Drive-Keys)
         access_token = refresh_access_token(client_id, client_secret, refresh_token)
         
         # 2. Upload bei Google anmelden (Resumable)
@@ -98,12 +99,11 @@ def move_to_archive(video_path, fact_data, image_path=None):
         
         # 1. Video kopieren
         video_filename = os.path.basename(video_path)
-        new_video_name = video_filename
-        dest_video_path = os.path.join(real_archive_dir, new_video_name)
+        dest_video_path = os.path.join(real_archive_dir, video_filename)
         shutil.copy2(video_path, dest_video_path)
         
         # --- GOOGLE DRIVE UPLOAD: VIDEO ---
-        _upload_to_drive(dest_video_path, new_video_name, "video/mp4")
+        _upload_to_drive(dest_video_path, video_filename, "video/mp4")
         
         # 2. Bild kopieren (falls vorhanden) & Hochladen
         new_image_name = None
@@ -142,11 +142,11 @@ def move_to_archive(video_path, fact_data, image_path=None):
         db = _load_db()
         db.append({
             "timestamp": datetime.now().isoformat(),
-            "video_file": new_video_name,
+            "video_file": video_filename,
             "image_file": new_image_name,
             "title": fact_data.get("title", ""),
             "description": fact_data.get("description", ""),
-            "topic": fact_data.get("topic", "AI Fails")
+            "topic": "AI Fails"
         })
         _save_db(db)
         
@@ -167,7 +167,6 @@ def cleanup_old_videos(days=30):
         db = _load_db()
         new_db = []
         
-        # 1. Dateien auf Festplatte prüfen
         for f in os.listdir(real_archive_dir):
             if f == "archive.json": continue
             path = os.path.join(real_archive_dir, f)
@@ -175,7 +174,6 @@ def cleanup_old_videos(days=30):
                 os.remove(path)
                 _log_msg(f"🧹 Datei gelöscht: {f}")
 
-        # 2. Datenbank aufräumen
         for entry in db:
             file_path = os.path.join(real_archive_dir, entry["video_file"])
             if os.path.exists(file_path):
