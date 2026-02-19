@@ -4,10 +4,30 @@ import time
 import json
 from datetime import datetime
 
+# --- NEU: Imports für den Drive-Upload ---
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+# -----------------------------------------
+
 # Pfad zum persistenten Volume
 ARCHIVE_DIR = "/data/archive" 
 REAL_ARCHIVE_PATH = os.path.realpath(ARCHIVE_DIR)
 DB_FILE = os.path.join(REAL_ARCHIVE_PATH, "archive.json")
+
+# --- NEU: Hilfsfunktion für Google Drive ---
+def _get_drive_service():
+    """Erstellt den Drive-Service aus der Railway-Variable."""
+    creds_json = os.getenv('GOOGLE_CREDS_JSON')
+    if not creds_json:
+        return None
+    try:
+        info = json.loads(creds_json)
+        return service_account.Credentials.from_service_account_info(info)
+    except Exception as e:
+        print(f"Fehler beim Laden der Google Credentials: {e}")
+        return None
+# -------------------------------------------
 
 def _load_db():
     if not os.path.exists(DB_FILE):
@@ -43,6 +63,22 @@ def move_to_archive(video_path, fact_data, image_path=None):
             new_image_name = f"{timestamp_str}_{image_filename}"
             dest_image_path = os.path.join(real_archive_dir, new_image_name)
             shutil.copy2(image_path, dest_image_path)
+            
+        # --- NEU: 2.5 GOOGLE DRIVE UPLOAD ---
+        try:
+            drive_creds = _get_drive_service()
+            folder_id = os.getenv('DRIVE_FOLDER_ID')
+            
+            if drive_creds and folder_id:
+                service = build('drive', 'v3', credentials=drive_creds)
+                # Lädt das Video in Drive hoch
+                file_metadata = {'name': new_video_name, 'parents': [folder_id]}
+                media = MediaFileUpload(dest_video_path, mimetype='video/mp4', resumable=True)
+                service.files().create(body=file_metadata, media_body=media).execute()
+                print(f"☁️ {new_video_name} erfolgreich in Google Drive gesichert.")
+        except Exception as drive_err:
+            print(f"⚠️ Drive Upload fehlgeschlagen (lokales Archiv läuft weiter): {drive_err}")
+        # ------------------------------------
         
         # 3. Metadaten in JSON speichern
         db = _load_db()
