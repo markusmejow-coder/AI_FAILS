@@ -62,15 +62,16 @@ def generate_fact(api_key: str, topic: str = None) -> dict:
 
     fact_text = fact_response.strip().strip('"')
 
-    # Second call: generate YouTube metadata
+    # Second call: generate YouTube metadata with specific hashtags
     meta_prompt = f"""For this YouTube Shorts AI Fail video, write:
 Fail: "{fact_text}"
+Topic: "{topic}"
 
 Return ONLY valid JSON with these exact keys:
 {{
   "title": "YouTube title max 60 chars, start with emoji, hook first",
-  "description": "2-3 sentences about this AI glitch, end with question to boost comments",
-  "tags": ["AI", "Fail", "Tech", "Funny", "Glitches", "Shorts", "Trending", "Algorithm"],
+  "description": "2-3 sentences about this AI glitch, end with a question. Do NOT include hashtags here.",
+  "tags": ["{topic.replace(' ', '').replace('(', '').replace(')', '')}", "AIFail", "TechFail", "Funny", "Glitches", "Shorts", "AI", "Trending"],
   "source": "Short source credit e.g. 'Source: Reddit' or 'Source: Tech News'"
 }}"""
 
@@ -97,12 +98,21 @@ Return ONLY valid JSON with these exact keys:
             "source": "Source: AI Archives"
         }
 
+    # Generate automated Hashtags for description
+    tags_list = meta.get("tags", ["AI", "Fail", "Shorts"])
+    tags_str = " ".join([f"#{t.replace(' ', '')}" for t in tags_list])
+    if "#Shorts" not in tags_str:
+        tags_str += " #Shorts #AIFails #Glitch"
+    
+    # Finale Beschreibung nur mit Text und Hashtags (Im Kanal hinterlegtes Impressum reicht)
+    full_description = f"{meta.get('description', '')}\n\n{tags_str}"
+
     return {
         "fact": fact_text,
         "topic": topic,
         "title": meta.get("title", "🤖 Epic AI Fail"),
-        "description": meta.get("description", fact_text),
-        "tags": meta.get("tags", ["AI", "Fail", "Shorts"]),
+        "description": full_description,
+        "tags": tags_list,
         "source": meta.get("source", ""),
         "generated_at": datetime.now().isoformat()
     }
@@ -142,6 +152,3 @@ def _call_gpt(api_key: str, system: str, user: str,
 
 if __name__ == "__main__":
     print("AI Fail generator ready.")
-    print("Set OPENAI_API_KEY env variable to test.")
-    print(f"Available topics: {len(TOPICS)}")
-    print(f"Sample topic: {random.choice(TOPICS)}")
