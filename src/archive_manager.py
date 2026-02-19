@@ -2,32 +2,30 @@ import os
 import shutil
 import time
 import json
+import requests
 from datetime import datetime
 
-# --- NEU: Imports für den Drive-Upload ---
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
-# -----------------------------------------
+# Wir leihen uns die fertige Token-Funktion aus deinem YouTube-Skript!
+from youtube_upload import refresh_access_token
 
-# Pfad zum persistenten Volume
+# Pfad zum persistenten Volume & Logs
 ARCHIVE_DIR = "/data/archive" 
 REAL_ARCHIVE_PATH = os.path.realpath(ARCHIVE_DIR)
 DB_FILE = os.path.join(REAL_ARCHIVE_PATH, "archive.json")
+LOG_FILE = "/app/logs/bot.log"
 
-# --- NEU: Hilfsfunktion für Google Drive ---
-def _get_drive_service():
-    """Erstellt den Drive-Service aus der Railway-Variable."""
-    creds_json = os.getenv('GOOGLE_CREDS_JSON')
-    if not creds_json:
-        return None
+def _log_msg(msg):
+    """Schreibt Logs in die Konsole (für Railway) UND in die bot.log (fürs Web-Dashboard)"""
+    print(msg)
     try:
-        info = json.loads(creds_json)
-        return service_account.Credentials.from_service_account_info(info)
-    except Exception as e:
-        print(f"Fehler beim Laden der Google Credentials: {e}")
-        return None
-# -------------------------------------------
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        line = f"[{timestamp}] [INFO] {msg}\n"
+        real_log_file = os.path.realpath(LOG_FILE)
+        os.makedirs(os.path.dirname(real_log_file), exist_ok=True)
+        with open(real_log_file, "a", encoding="utf-8") as f:
+            f.write(line)
+    except Exception:
+        pass
 
 def _load_db():
     if not os.path.exists(DB_FILE):
@@ -42,50 +40,111 @@ def _save_db(data):
     with open(DB_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
+def _upload_to_drive(file_path, filename, mime_type="video/mp4"):
+    """Lädt eine Datei per REST API in Google Drive hoch (Resumable Upload)."""
+    folder_id = os.getenv('DRIVE_FOLDER_ID')
+    client_id = os.getenv('YOUTUBE_CLIENT_ID')
+    client_secret = os.getenv('YOUTUBE_CLIENT_SECRET')
+    refresh_token = os.getenv('YOUTUBE_REFRESH_TOKEN')
+
+    if not all([folder_id, client_id, client_secret, refresh_token]):
+        _log_msg(f"⚠️ Drive Upload übersprungen für {filename}: Credentials oder FOLDER_ID fehlen.")
+        return
+
+    try:
+        # 1. Frischen Access Token holen
+        access_token = refresh_access_token(client_id, client_secret, refresh_token)
+        
+        # 2. Upload bei Google anmelden (Resumable)
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+            "X-Upload-Content-Type": mime_type
+        }
+        metadata = {"name": filename, "parents": [folder_id]}
+        
+        init_res = requests.post(
+            "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable",
+            headers=headers,
+            json=metadata
+        )
+        init_res.raise_for_status()
+        upload_url = init_res.headers.get("Location")
+        
+        if not upload_url:
+            raise Exception("Keine Upload-URL von Google erhalten.")
+
+        # 3. Datei-Bytes hochschieben
+        file_size = os.path.getsize(file_path)
+        with open(file_path, "rb") as f:
+            upload_res = requests.put(
+                upload_url,
+                headers={"Content-Length": str(file_size)},
+                data=f
+            )
+            upload_res.raise_for_status()
+        
+        _log_msg(f"☁️ {filename} erfolgreich in Google Drive gesichert.")
+    except Exception as e:
+        _log_msg(f"⚠️ Drive Upload fehlgeschlagen für {filename}: {e}")
+
 def move_to_archive(video_path, fact_data, image_path=None):
     """Speichert Video, Bild und Metadaten im Archiv."""
     try:
         real_archive_dir = os.path.realpath(ARCHIVE_DIR)
         os.makedirs(real_archive_dir, exist_ok=True)
         
-        timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
-        # 1. Video kopieren
+        # 1. Video kopieren (Kein extra Zeitstempel mehr, Name kommt fertig aus bot.py!)
         video_filename = os.path.basename(video_path)
-        new_video_name = f"{timestamp_str}_{video_filename}"
+        new_video_name = video_filename
         dest_video_path = os.path.join(real_archive_dir, new_video_name)
         shutil.copy2(video_path, dest_video_path)
         
-        # 2. Bild kopieren (falls vorhanden)
+        # --- GOOGLE DRIVE UPLOAD: VIDEO ---
+        _upload_to_drive(dest_video_path, new_video_name, "video/mp4")
+        
+        # 2. Bild kopieren (falls vorhanden) & Hochladen
         new_image_name = None
         if image_path and os.path.exists(image_path):
             image_filename = os.path.basename(image_path)
-            new_image_name = f"{timestamp_str}_{image_filename}"
+            new_image_name = image_filename
             dest_image_path = os.path.join(real_archive_dir, new_image_name)
             shutil.copy2(image_path, dest_image_path)
             
-        # --- NEU: 2.5 GOOGLE DRIVE UPLOAD ---
-        try:
-            drive_creds = _get_drive_service()
-            folder_id = os.getenv('DRIVE_FOLDER_ID')
+            # --- GOOGLE DRIVE UPLOAD: BILD ---
+            _upload_to_drive(dest_image_path, new_image_name, "image/png")
             
-            if drive_creds and folder_id:
-                service = build('drive', 'v3', credentials=drive_creds)
-                # Lädt das Video in Drive hoch
-                file_metadata = {'name': new_video_name, 'parents': [folder_id]}
-                media = MediaFileUpload(dest_video_path, mimetype='video/mp4', resumable=True)
-                service.files().create(body=file_metadata, media_body=media).execute()
-                print(f"☁️ {new_video_name} erfolgreich in Google Drive gesichert.")
-        except Exception as drive_err:
-            print(f"⚠️ Drive Upload fehlgeschlagen (lokales Archiv läuft weiter): {drive_err}")
-        # ------------------------------------
+        # 3. Temporäre Textdatei für Google Drive erstellen & Hochladen
+        try:
+            # Basisname ohne Dateiendung (z.B. 2026-02-19_Mindblown_181453)
+            base_name_no_ext = os.path.splitext(video_filename)[0]
+            txt_filename = f"{base_name_no_ext}_metadata.txt"
+            temp_txt_path = os.path.join("/tmp", txt_filename)
+            
+            # Exakt die Daten, die auch der Copy-Button ausgibt, plus Tags
+            with open(temp_txt_path, "w", encoding="utf-8") as f:
+                f.write(f"{fact_data.get('title', '')}\n\n")
+                f.write(f"{fact_data.get('description', '')}\n\n")
+                
+                tags = fact_data.get("tags", [])
+                if tags:
+                    f.write(f"Tags: {', '.join(tags)}\n")
+            
+            # --- GOOGLE DRIVE UPLOAD: TEXTDATEI ---
+            _upload_to_drive(temp_txt_path, txt_filename, "text/plain")
+            
+            # WICHTIG: Textdatei lokal sofort wieder löschen! (Dein Archiv bleibt sauber)
+            if os.path.exists(temp_txt_path):
+                os.remove(temp_txt_path)
+        except Exception as txt_err:
+            _log_msg(f"⚠️ Fehler beim Erstellen der Drive-Textdatei: {txt_err}")
         
-        # 3. Metadaten in JSON speichern
+        # 4. Metadaten lokal in JSON speichern (für Copy-Button)
         db = _load_db()
         db.append({
             "timestamp": datetime.now().isoformat(),
             "video_file": new_video_name,
-            "image_file": new_image_name,  # NEU: Bild-Referenz
+            "image_file": new_image_name,
             "title": fact_data.get("title", ""),
             "description": fact_data.get("description", ""),
             "topic": fact_data.get("topic", "General")
@@ -94,7 +153,7 @@ def move_to_archive(video_path, fact_data, image_path=None):
         
         return dest_video_path
     except Exception as e:
-        print(f"Fehler beim Archivieren: {e}")
+        _log_msg(f"Fehler beim Archivieren: {e}")
         return None
 
 def cleanup_old_videos(days=30):
@@ -115,7 +174,7 @@ def cleanup_old_videos(days=30):
             path = os.path.join(real_archive_dir, f)
             if os.path.isfile(path) and os.path.getmtime(path) < cutoff:
                 os.remove(path)
-                print(f"🧹 Datei gelöscht: {f}")
+                _log_msg(f"🧹 Datei gelöscht: {f}")
 
         # 2. Datenbank aufräumen (nur behalten, was noch als Datei existiert)
         for entry in db:
@@ -125,4 +184,4 @@ def cleanup_old_videos(days=30):
         
         _save_db(new_db)
     except Exception as e:
-        print(f"Fehler beim Cleanup: {e}")
+        _log_msg(f"Fehler beim Cleanup: {e}")
