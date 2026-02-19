@@ -57,9 +57,9 @@ def upload_short(video_path: str, title: str, description: str,
     
     # Hier setzen wir die KI-Kennzeichnung auf True
     status = {
-        "privacyStatus":           "public",
-        "selfDeclaredMadeForKids": False,
-        "selfDeclaredMadeForAIContent": True  # NEU: KI-Kennzeichnung für YouTube 2026
+        "privacyStatus": "public",
+        "containsSyntheticMedia": True,  # <-- Der offizielle YouTube API-Parameter
+        "selfDeclaredMadeForKids": False
     }
 
     metadata = json.dumps({
