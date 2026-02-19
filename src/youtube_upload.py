@@ -45,20 +45,20 @@ def refresh_access_token(client_id: str, client_secret: str,
 
 def upload_short(video_path: str, title: str, description: str,
                  tags: list, access_token: str) -> str:
-    """
-    Upload a video as a YouTube Short.
-    Returns the video ID.
-    """
     # Metadata
+    # Wir fügen themenspezifische Tags hinzu und stellen sicher, dass #Shorts enthalten ist
     snippet = {
-        "title":       title[:100],  # YouTube max 100 chars
-        "description": description[:5000] + "\n\n#Shorts",
-        "tags":        tags + ["Shorts", "facts", "didyouknow"],
+        "title":       title[:100], 
+        "description": f"{description[:4500]}\n\n#Shorts #MindBlown #Facts #AI",
+        "tags":        tags[:15], # YouTube erlaubt max. 500 Zeichen an Tags insgesamt
         "categoryId":  "28"  # Science & Technology
     }
+    
+    # Hier setzen wir die KI-Kennzeichnung auf True
     status = {
         "privacyStatus":           "public",
-        "selfDeclaredMadeForKids": False
+        "selfDeclaredMadeForKids": False,
+        "selfDeclaredMadeForAIContent": True  # NEU: KI-Kennzeichnung für YouTube 2026
     }
 
     metadata = json.dumps({
