@@ -217,11 +217,16 @@ def run():
             refresh_token = config["YOUTUBE_REFRESH_TOKEN"]
         )
 
+        # Dynamische Hashtags für AI FAILS generieren
+        topic_tag = fact_data.get('topic', 'AI').replace(" ", "")
+        # Spezifische Tags für diesen Bot
+        additional_tags = [topic_tag, "AIFails", "Glitch", "ArtificialIntelligence", "Shorts"]
+        
         video_id = upload_short(
             video_path   = video_path,
             title        = fact_data["title"],
             description  = fact_data["description"],
-            tags         = fact_data.get("tags", []),
+            tags         = fact_data.get("tags", []) + additional_tags, # Tags kombinieren
             access_token = access_token
         )
 
@@ -239,9 +244,13 @@ def run():
 
         # ── Archivierung (Director Move) ──────────────────────
         try:
-            archive_manager.move_to_archive(video_path)
+            # WICHTIG: Wir übergeben jetzt fact_data, damit Titel/Beschreibung 
+            # für den Copy-Button in der archive.json landen
+            # NEU: image_path wird mit übergeben
+            archive_manager.move_to_archive(video_path, fact_data, image_path)
+            
             archive_manager.cleanup_old_videos(30)
-            log("📦 Video erfolgreich archiviert (30 Tage Vorhaltung)")
+            log("📦 Video, Bild & Metadaten erfolgreich archiviert")
         except Exception as e:
             log(f"⚠️ Archivierung fehlgeschlagen: {e}", "WARN")
 
