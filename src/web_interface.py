@@ -647,9 +647,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
         
         rows = ""
         for item in items:
-            full_meta = f"{item.get('title', '')}\\n\\n{item.get('description', '')}".replace("'", "\\'").replace('"', '&quot;')
+            # 100% bombensicheres Escaping für JavaScript via URL-Encoding
+            raw_text = f"{item.get('title', '')}\n\n{item.get('description', '')}"
+            encoded_meta = urllib.parse.quote(raw_text)
             
-            # NEU: Bild-Button dynamisch einblenden, falls vorhanden
+            # Bild-Button dynamisch einblenden, falls vorhanden
             image_btn = ""
             if item.get("image_file"):
                 image_btn = f'<a href="/download/{item["image_file"]}" style="color: #e91e63; text-decoration: none; font-weight: bold; font-size: 14px; margin-left: 15px;">🖼️ Bild</a>'
@@ -663,7 +665,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     {image_btn}
                 </td>
                 <td style="padding: 15px;">
-                    <button onclick="copyToClipboard('{full_meta}')" style="background: #667eea; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">
+                    <button onclick="copyToClipboard('{encoded_meta}')" style="background: #667eea; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">
                         📋 Copy Meta
                     </button>
                 </td>
@@ -674,7 +676,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         <html>
             <head>
                 <meta name="viewport" content="width=device-width, initial-scale=1">
-                <title>Video Archiv - AI Fails</title>
+                <title>Video Archiv</title>
                 <style>
                     body {{ font-family: -apple-system, sans-serif; padding: 20px; background: #f5f5f7; color: #333; }}
                     .container {{ max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
@@ -682,10 +684,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     th {{ text-align: left; color: #888; font-size: 11px; text-transform: uppercase; padding: 10px; border-bottom: 2px solid #f5f5f7; }}
                 </style>
                 <script>
-                function copyToClipboard(text) {{
-                    const cleanText = text.replace(/\\\\n/g, '\\n');
-                    navigator.clipboard.writeText(cleanText).then(() => {{
+                function copyToClipboard(encodedText) {{
+                    // Text wird hier wieder entschlüsselt, inklusive aller echten Zeilenumbrüche
+                    const text = decodeURIComponent(encodedText);
+                    navigator.clipboard.writeText(text).then(() => {{
                         alert("Metadaten (Titel & Beschreibung) kopiert!");
+                    }}).catch(err => {{
+                        alert("Fehler beim Kopieren: " + err);
                     }});
                 }}
                 </script>
