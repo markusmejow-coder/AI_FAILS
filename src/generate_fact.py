@@ -37,9 +37,6 @@ Rules:
 - Must be a real, documented or highly relatable AI glitch
 - Write ONLY the fail description, nothing else
 - Make it punchy: "Imagine an AI...", "This chatbot...", "A computer once..."
-
-Bad example: "An AI made a mistake in a recipe once which was quite funny."
-Good example: "A Google AI once identified a simple turtle as a loaded rifle — and it was 100% sure about it."
 """
 
 
@@ -47,12 +44,25 @@ def generate_fact(api_key: str, topic: str = None) -> dict:
     """
     Returns: { "fact": str, "source": str, "topic": str, "title": str, "description": str, "tags": list }
     """
-    if topic is None:
+    if topic is None or topic == "random":
         topic = random.choice(TOPICS)
 
-    user_prompt = f"Write one viral AI fail about: {topic}"
+    # REPETITION FIX: Lade die letzten Fakten aus dem Archiv
+    history_context = ""
+    try:
+        archive_path = "/data/archive/archive.json"
+        if os.path.exists(archive_path):
+            with open(archive_path, "r") as f:
+                data = json.load(f)
+                recent_fails = [item.get("fact", "") for item in data[-10:]]
+                if recent_fails:
+                    history_context = "IMPORTANT: Do NOT repeat these recent fails: " + " | ".join(recent_fails)
+    except:
+        pass
 
-    # First call: get the fail/fact
+    user_prompt = f"{history_context}\n\nWrite one fresh, obscure, and hilarious AI fail about: {topic}."
+
+    # First call: get the fail
     fact_response = _call_gpt(
         api_key=api_key,
         system=SYSTEM_PROMPT,
@@ -62,24 +72,26 @@ def generate_fact(api_key: str, topic: str = None) -> dict:
 
     fact_text = fact_response.strip().strip('"')
 
-    # Second call: generate YouTube metadata with specific hashtags
+    # Second call: generate YouTube metadata
     meta_prompt = f"""For this YouTube Shorts AI Fail video, write:
 Fail: "{fact_text}"
 Topic: "{topic}"
 
-Return ONLY valid JSON with these exact keys:
+Return ONLY valid JSON with diese exact keys:
 {{
   "title": "YouTube title max 60 chars, start with emoji, hook first",
   "description": "2-3 sentences about this AI glitch, end with a question. Do NOT include hashtags here.",
-  "tags": ["{topic.replace(' ', '').replace('(', '').replace(')', '')}", "AIFail", "TechFail", "Funny", "Glitches", "Shorts", "AI", "Trending"],
-  "source": "Short source credit e.g. 'Source: Reddit' or 'Source: Tech News'"
+  "tags": ["{topic.replace(' ', '').replace('(', '').replace(')', '')}", "AIFail", "Funny", "Glitches", "Shorts"],
+  "source": "Short source credit e.g. 'Source: Reddit'",
+  "parts": ["Hook (max 4 words)", "The fail description", "Final punchline/trigger"],
+  "words": ["List", "of", "all", "words"]
 }}"""
 
     meta_response = _call_gpt(
         api_key=api_key,
         system="You write YouTube metadata. Return only valid JSON, no markdown.",
         user=meta_prompt,
-        max_tokens=300
+        max_tokens=500
     )
 
     # Parse JSON safely
@@ -95,16 +107,15 @@ Return ONLY valid JSON with these exact keys:
             "title": f"🤖 AI Fail: You won't believe this...",
             "description": f"{fact_text}\n\nIs AI taking over or just failing? 😂",
             "tags": ["AI", "Fail", "Funny", "Tech", "Shorts"],
-            "source": "Source: AI Archives"
+            "source": "Source: AI Archives",
+            "parts": ["AI Fails...", fact_text, "Unbelievable."],
+            "words": fact_text.split()
         }
 
-    # Generate automated Hashtags for description
-    tags_list = meta.get("tags", ["AI", "Fail", "Shorts"])
-    tags_str = " ".join([f"#{t.replace(' ', '')}" for t in tags_list])
+    tags_str = " ".join([f"#{t.replace(' ', '')}" for t in meta.get("tags", [])])
     if "#Shorts" not in tags_str:
-        tags_str += " #Shorts #AIFails #Glitch"
+        tags_str += " #Shorts #AIFails"
     
-    # Finale Beschreibung nur mit Text und Hashtags (Im Kanal hinterlegtes Impressum reicht)
     full_description = f"{meta.get('description', '')}\n\n{tags_str}"
 
     return {
@@ -112,15 +123,17 @@ Return ONLY valid JSON with these exact keys:
         "topic": topic,
         "title": meta.get("title", "🤖 Epic AI Fail"),
         "description": full_description,
-        "tags": tags_list,
+        "tags": meta.get("tags", []),
         "source": meta.get("source", ""),
+        "parts": meta.get("parts", []),
+        "words": meta.get("words", []),
         "generated_at": datetime.now().isoformat()
     }
 
 
 def _call_gpt(api_key: str, system: str, user: str,
               max_tokens: int = 200) -> str:
-    """Raw OpenAI API call via urllib (no SDK needed)."""
+    """Raw OpenAI API call via urllib."""
     payload = json.dumps({
         "model": "gpt-4o-mini",
         "messages": [
@@ -128,7 +141,7 @@ def _call_gpt(api_key: str, system: str, user: str,
             {"role": "user",   "content": user}
         ],
         "max_tokens": max_tokens,
-        "temperature": 0.9
+        "temperature": 1.0 # Höhere Temperatur für mehr Varianz
     }).encode("utf-8")
 
     req = urllib.request.Request(
@@ -148,7 +161,3 @@ def _call_gpt(api_key: str, system: str, user: str,
     except urllib.error.HTTPError as e:
         error_body = e.read().decode()
         raise RuntimeError(f"OpenAI API error {e.code}: {error_body}")
-
-
-if __name__ == "__main__":
-    print("AI Fail generator ready.")
