@@ -1,11 +1,8 @@
 """
 generate_image.py
-Erstellt hochauflösende 1080x1920 Assets für AI Fails.
-Diese Pro-Version enthält:
-1. Exakte horizontale Zentrierung (bbox-Fix)
-2. Höhere vertikale Text-Position (Zentrum y=850) für Progress Bar Platz
-3. Den klassischen dicken farbigen Balken oben (statt Text)
-4. Vollständige Layer-Unterstützung für Multi-Frame-Rendering
+Creates a 1080x1920 (9:16 vertical) fact image for YouTube Shorts.
+No external image AI needed — pure Python + Pillow.
+Optimized for AI Fails with exact centering and thick top bar.
 """
 
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -18,78 +15,56 @@ import os
 FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 FONT_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
-# Standard-Auflösung für YouTube Shorts
+# Shorts Standard Auflösung
 W, H = 1080, 1920
 
-# ── ERWEITERTE FARBPALETTEN (PRO) ─────────────────────────────
-# Jede Palette enthält Background, Accent (Balken/Linien), Text und Sub-Text Farben
+# Color palettes — KI rotiert automatisch durch diese Pro-Paletten
 PALETTES = [
-    {
-        "bg": (15, 15, 5),      # Deep Dark
-        "accent": (255, 215, 0), # AI Warning Gold
-        "text": (255, 255, 255), 
-        "sub": (255, 235, 120)
-    },
-    {
-        "bg": (20, 5, 5),       # Dark Red
-        "accent": (255, 75, 75),  # Error Red
-        "text": (255, 255, 255), 
-        "sub": (255, 150, 150)
-    },
-    {
-        "bg": (5, 5, 25),       # Cyber Blue
-        "accent": (255, 0, 255), # Glitch Pink
-        "text": (255, 255, 255), 
-        "sub": (200, 150, 255)
-    },
-    {
-        "bg": (2, 10, 5),       # Matrix Black
-        "accent": (50, 255, 50),  # Terminal Green
-        "text": (255, 255, 255), 
-        "sub": (150, 255, 150)
-    },
-    {
-        "bg": (10, 0, 20),      # Void Purple
-        "accent": (0, 255, 255),  # Neon Cyan
-        "text": (255, 255, 255), 
-        "sub": (150, 255, 255)
-    },
+    {"bg": (15, 15, 5),    "accent": (255, 215, 0),  "text": (255, 255, 255), "sub": (255, 235, 120)}, # Gold
+    {"bg": (20, 5, 5),     "accent": (255, 75, 75),   "text": (255, 255, 255), "sub": (255, 150, 150)}, # Red
+    {"bg": (5, 5, 25),     "accent": (255, 0, 255),  "text": (255, 255, 255), "sub": (200, 150, 255)}, # Glitch
+    {"bg": (2, 10, 5),     "accent": (50, 255, 50),   "text": (255, 255, 255), "sub": (150, 255, 150)}, # Green
+    {"bg": (10, 0, 20),    "accent": (0, 255, 255),   "text": (255, 255, 255), "sub": (150, 255, 255)}, # Cyan
 ]
 
-# ── HILFSFUNKTIONEN FÜR EFFEKTE ──────────────────────────────
 
-def draw_particles(draw, palette, count=65):
-    """Zeichnet subtile glühende Punkte im Hintergrund für mehr Tiefe."""
+def draw_particles(draw, palette, count=60):
+    """Draw subtle glowing dots in background."""
     for _ in range(count):
         x = random.randint(0, W)
         y = random.randint(0, H)
         size = random.randint(1, 4)
-        alpha = random.randint(40, 130)
+        alpha = random.randint(40, 140)
         r, g, b = palette["accent"]
-        draw.ellipse([x-size, y-size, x+size, y+size], fill=(r, g, b, alpha))
+        draw.ellipse([x-size, y-size, x+size, y+size],
+                     fill=(r, g, b, alpha))
+
 
 def draw_gradient_bg(img, palette):
-    """Erstellt einen sauberen vertikalen Verlaufshintergrund."""
+    """Draw a vertical gradient background."""
     draw = ImageDraw.Draw(img, "RGBA")
     r1, g1, b1 = palette["bg"]
+    # Slightly lighter at center
     for y in range(H):
-        # Zentrierter Lichteffekt (Sinus-Kurve)
-        factor = 1.0 + 0.25 * math.sin(math.pi * y / H)
+        factor = 1.0 + 0.3 * math.sin(math.pi * y / H)
         r = min(255, int(r1 * factor))
         g = min(255, int(g1 * factor))
         b = min(255, int(b1 * factor))
         draw.line([(0, y), (W, y)], fill=(r, g, b))
     return draw
 
+
 def draw_glow_line(draw, palette, y_pos):
-    """Zeichnet eine glühende horizontale Trennlinie mit Weichzeichnungseffekt."""
+    """Draw a glowing horizontal accent line."""
     r, g, b = palette["accent"]
-    for thickness in [7, 4, 2]:
-        alpha = 55 if thickness == 7 else (110 if thickness == 4 else 240)
-        draw.line([(90, y_pos), (W-90, y_pos)], fill=(r, g, b, alpha), width=thickness)
+    for thickness in [6, 4, 2]:
+        alpha = 60 if thickness == 6 else (120 if thickness == 4 else 255)
+        draw.line([(80, y_pos), (W-80, y_pos)],
+                  fill=(r, g, b, alpha), width=thickness)
+
 
 def wrap_text(text, font, max_width, draw):
-    """Word-wrap Logik um Text innerhalb der Seitenränder zu halten."""
+    """Word-wrap text to fit within max_width pixels."""
     words = text.split()
     lines = []
     current = ""
@@ -99,16 +74,97 @@ def wrap_text(text, font, max_width, draw):
         if bbox[2] <= max_width:
             current = test
         else:
-            if current: lines.append(current)
+            if current:
+                lines.append(current)
             current = word
-    if current: lines.append(current)
+    if current:
+        lines.append(current)
     return lines
 
-# ── HAUPTFUNKTIONEN ──────────────────────────────────────────
 
-def create_fact_image(fact_text, source_text, output_path, palette_index=None):
+# --- NEUE FUNKTION: Nur den Hintergrund erstellen (PRO) ---
+def create_base_background(palette_index: int, source_text: str, output_path: str):
+    """Erstellt das Grundgerüst ohne Haupttext."""
+    palette = PALETTES[palette_index % len(PALETTES)]
+    img = Image.new("RGB", (W, H), palette["bg"])
+    draw = draw_gradient_bg(img, palette)
+
+    overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    odraw = ImageDraw.Draw(overlay)
+    draw_particles(odraw, palette)
+    img.paste(Image.new("RGB", (W, H)), mask=overlay.split()[3])
+    img = img.convert("RGBA")
+    img.alpha_composite(overlay)
+    img = img.convert("RGB")
+    draw = ImageDraw.Draw(img)
+
+    # ── TOP BAR (Der dicke Balken statt Text - wie gewünscht) ──
+    bar_w, bar_h = 320, 60
+    bx = (W - bar_w) // 2
+    by = 130
+    draw.rounded_rectangle([bx, by, bx+bar_w, by+bar_h], radius=15, fill=palette["accent"])
+
+    # Linien
+    draw_glow_line(draw, palette, 260)
+    draw_glow_line(draw, palette, 1700)
+
+    # Tag & Quelle
+    tag_font = ImageFont.truetype(FONT_BOLD, 42)
+    tag_text = "AI Fails & Glitches • Join the Chaos"
+    tbbox = draw.textbbox((0, 0), tag_text, font=tag_font)
+    tx = (W - (tbbox[2] - tbbox[0])) // 2
+    draw.text((tx, 1740), tag_text, font=tag_font, fill=palette["sub"])
+
+    if source_text:
+        src_font = ImageFont.truetype(FONT_REGULAR, 32)
+        sbbox = draw.textbbox((0, 0), source_text, font=src_font)
+        sx = (W - (sbbox[2] - sbbox[0])) // 2
+        draw.text((sx, 1830), source_text, font=src_font, fill=(150, 150, 150))
+
+    img.save(output_path, "PNG")
+    return output_path
+
+
+# --- NEUE FUNKTION: Transparenter Text-Layer (PRO) ---
+def create_text_layer(text: str, palette_index: int, output_path: str, font_size: int = 72):
+    """Erstellt ein transparentes PNG nur mit dem Text."""
+    palette = PALETTES[palette_index % len(PALETTES)]
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    fact_font = ImageFont.truetype(FONT_BOLD, font_size)
+    max_text_w = W - 240
+    lines = wrap_text(text, fact_font, max_text_w, draw)
+
+    while len(lines) > 8 and font_size > 48:
+        font_size -= 4
+        fact_font = ImageFont.truetype(FONT_BOLD, font_size)
+        lines = wrap_text(text, fact_font, max_text_w, draw)
+
+    line_height = font_size + 20
+    total_text_h = len(lines) * line_height
+    
+    # VISUAL CENTER FIX: Höhere Positionierung bei y=850 (statt 1090)
+    text_y_start = 850 - (total_text_h // 2)
+
+    for i, line in enumerate(lines):
+        y = text_y_start + i * line_height
+        bbox = draw.textbbox((0, 0), line, font=fact_font)
+        # Exakte horizontale Zentrierung
+        x = (W - (bbox[2] - bbox[0])) // 2
+        # Shadow
+        draw.text((x+3, y+3), line, font=fact_font, fill=(0, 0, 0, 80))
+        # Main text
+        draw.text((x, y), line, font=fact_font, fill=palette["text"])
+
+    img.save(output_path, "PNG")
+    return output_path
+
+
+def create_fact_image(fact_text: str, source_text: str,
+                      output_path: str, palette_index: int = None):
     """
-    Erstellt das vollständige Asset für den 'Classic' Modus.
+    Klassische Funktion für 'Classic' Modus.
     """
     if palette_index is None:
         palette_index = random.randint(0, len(PALETTES) - 1)
@@ -117,131 +173,81 @@ def create_fact_image(fact_text, source_text, output_path, palette_index=None):
     img = Image.new("RGB", (W, H), palette["bg"])
     draw = draw_gradient_bg(img, palette)
 
-    # FX Layer für Partikel
+    # Particles layer
     overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     odraw = ImageDraw.Draw(overlay)
     draw_particles(odraw, palette)
     img.paste(Image.new("RGB", (W, H)), mask=overlay.split()[3])
-    img = img.convert("RGBA"); img.alpha_composite(overlay); img = img.convert("RGB")
-    
+    img = img.convert("RGBA")
+    img.alpha_composite(overlay)
+    img = img.convert("RGB")
+
     draw = ImageDraw.Draw(img)
 
-    # 1. TOP BAR (Der dicke Balken oben statt Text)
-    bar_w, bar_h = 340, 65
+    # ── TOP BAR (Der dicke Balken oben statt Text) ──
+    bar_w, bar_h = 320, 60
     bx = (W - bar_w) // 2
-    by = 135
-    draw.rounded_rectangle([bx, by, bx+bar_w, by+bar_h], radius=18, fill=palette["accent"])
-    
-    # Trennlinie unter dem Balken
-    draw_glow_line(draw, palette, 280)
+    by = 130
+    draw.rounded_rectangle([bx, by, bx+bar_w, by+bar_h], radius=15, fill=palette["accent"])
 
-    # 2. MAIN TEXT BLOCK
-    fact_font_size = 76
+    # ── ACCENT LINE ──
+    draw_glow_line(draw, palette, 260)
+
+    # ── MAIN FACT TEXT ──
+    fact_font_size = 72
     fact_font = ImageFont.truetype(FONT_BOLD, fact_font_size)
-    max_text_w = W - 220 # 110px Rand auf jeder Seite
+
+    max_text_w = W - 240  # 120px margin each side
     lines = wrap_text(fact_text, fact_font, max_text_w, draw)
 
-    # Font-Scaling: Falls zu viele Zeilen, verkleinern wir die Schrift
-    while len(lines) > 8 and fact_font_size > 50:
+    # If too many lines, reduce font size
+    while len(lines) > 8 and fact_font_size > 48:
         fact_font_size -= 4
         fact_font = ImageFont.truetype(FONT_BOLD, fact_font_size)
         lines = wrap_text(fact_text, fact_font, max_text_w, draw)
 
-    line_height = fact_font_size + 22
+    line_height = fact_font_size + 20
     total_text_h = len(lines) * line_height
     
-    # VISUAL CENTER FIX: Text deutlich höher setzen (Zentrum bei y=850)
-    # Das hält den Text fern vom Fortschrittsbalken am unteren Ende.
+    # VISUAL CENTER FIX: Höhere Positionierung bei y=850
     text_y_start = 850 - (total_text_h // 2)
 
     for i, line in enumerate(lines):
         y = text_y_start + i * line_height
         bbox = draw.textbbox((0, 0), line, font=fact_font)
-        # Exakte horizontale Zentrierung (Width - (Rechts - Links)) / 2
+        # Exakte horizontale Zentrierung
         x = (W - (bbox[2] - bbox[0])) // 2
-        # Schlagschatten für bessere Lesbarkeit
-        draw.text((x+4, y+4), line, font=fact_font, fill=(0, 0, 0, 110))
+        # Shadow
+        draw.text((x+3, y+3), line, font=fact_font, fill=(0, 0, 0, 80))
+        # Main text
         draw.text((x, y), line, font=fact_font, fill=palette["text"])
 
-    # Untere Trennlinie
-    draw_glow_line(draw, palette, 1680)
+    # ── BOTTOM ACCENT LINE ──
+    draw_glow_line(draw, palette, 1700)
 
-    # 3. BRANDING & SOCIAL TAG
-    tag_font = ImageFont.truetype(FONT_BOLD, 44)
+    # ── CHANNEL TAG ──
+    tag_font = ImageFont.truetype(FONT_BOLD, 42)
     tag_text = "AI Fails & Glitches • Join the Chaos"
     tbbox = draw.textbbox((0, 0), tag_text, font=tag_font)
     tx = (W - (tbbox[2] - tbbox[0])) // 2
-    draw.text((tx, 1725), tag_text, font=tag_font, fill=palette["sub"])
+    draw.text((tx, 1740), tag_text, font=tag_font, fill=palette["sub"])
 
+    # ── SOURCE ──
     if source_text:
-        src_font = ImageFont.truetype(FONT_REGULAR, 34)
+        src_font = ImageFont.truetype(FONT_REGULAR, 32)
         sbbox = draw.textbbox((0, 0), source_text, font=src_font)
         sx = (W - (sbbox[2] - sbbox[0])) // 2
-        draw.text((sx, 1825), source_text, font=src_font, fill=(140, 140, 140))
+        draw.text((sx, 1830), source_text, font=src_font,
+                  fill=(150, 150, 150))
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     img.save(output_path, "PNG")
+    print(f"  ✅ Image saved: {output_path}")
     return output_path
 
-
-def create_base_background(palette_index, source_text, output_path):
-    """
-    Erstellt den Hintergrund-Layer (Balken & Branding) für Layer-Animationen.
-    """
-    palette = PALETTES[palette_index % len(PALETTES)]
-    img = Image.new("RGB", (W, H), palette["bg"])
-    draw = draw_gradient_bg(img, palette)
-    
-    # Balken oben
-    bar_w, bar_h = 340, 65
-    draw.rounded_rectangle([(W-bar_w)//2, 135, (W+bar_w)//2, 135+bar_h], radius=18, fill=palette["accent"])
-    
-    draw_glow_line(draw, palette, 280)
-    draw_glow_line(draw, palette, 1680)
-
-    # Branding
-    tag_font = ImageFont.truetype(FONT_BOLD, 44)
-    tag_text = "AI Fails & Glitches • Join the Chaos"
-    tx = (W - draw.textbbox((0, 0), tag_text, font=tag_font)[2]) // 2
-    draw.text((tx, 1725), tag_text, font=tag_font, fill=palette["sub"])
-
-    if source_text:
-        src_font = ImageFont.truetype(FONT_REGULAR, 34)
-        sx = (W - draw.textbbox((0, 0), source_text, font=src_font)[2]) // 2
-        draw.text((sx, 1825), source_text, font=src_font, fill=(140, 140, 140))
-
-    img.save(output_path, "PNG")
-    return output_path
-
-
-def create_text_layer(text, palette_index, output_path):
-    """
-    Erstellt einen transparenten Layer, der NUR den Text enthält (Zentriert bei y=850).
-    """
-    palette = PALETTES[palette_index % len(PALETTES)]
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-
-    fact_font_size = 76
-    fact_font = ImageFont.truetype(FONT_BOLD, fact_font_size)
-    lines = wrap_text(text, fact_font, W - 220, draw)
-    
-    line_height = fact_font_size + 22
-    text_y_start = 850 - ((len(lines) * line_height) // 2)
-
-    for i, line in enumerate(lines):
-        y = text_y_start + i * line_height
-        bbox = draw.textbbox((0, 0), line, font=fact_font)
-        x = (W - (bbox[2] - bbox[0])) // 2
-        draw.text((x, y), line, font=fact_font, fill=palette["text"])
-
-    img.save(output_path, "PNG")
-    return output_path
-
-# ── TEST BLOCK ───────────────────────────────────────────────
 
 if __name__ == "__main__":
-    # Testlauf zum Prüfen der Positionierung
-    test_text = "An AI once classified a standard yellow school bus as a 'Giant Banana' with 99% confidence."
-    create_fact_image(test_text, "Source: AI Research", "output/test_ai_fail.png", palette_index=0)
-    print("✅ Pro-Testbild erstellt in output/test_ai_fail.png")
+    # Quick test for pro features
+    create_base_background(0, "Source: AI Archives", "/tmp/base.png")
+    create_text_layer("An AI once identified a simple turtle as a rifle.", 0, "/tmp/layer.png")
+    print("✅ Test assets created!")
