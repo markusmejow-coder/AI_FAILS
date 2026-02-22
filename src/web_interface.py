@@ -349,7 +349,7 @@ HTML_DASHBOARD = """
                     <label>Animations Typ (Bewegung)</label>
                     <select id="animType">
                         <option value="zoom" {anim_zoom_selected}>Cinematic Zoom (Anti-Jitter)</option>
-                        <option value="static" {anim_static_selected}>Statisch (Glitch Look)</option>
+                        <option value="static" {anim_static_selected}>Statisch (MindBlown Look)</option>
                         <option value="pan" {anim_pan_selected}>Slow Pan (Langsamer Schwenk)</option>
                     </select>
                 </div>
@@ -357,7 +357,7 @@ HTML_DASHBOARD = """
                     <label>Standard Thema (Auto-Modus)</label>
                     <select id="videoTopic">
                         <option value="random" {topic_random_selected}>Zufall (KI Rotation)</option>
-                        <option value="AI image generation fails (too many fingers)" {topic_image_selected}>🎨 Image Fails</option>
+                        <option value="AI image generation fails" {topic_image_selected}>🎨 Image Fails</option>
                         <option value="funny ChatGPT hallucinations" {topic_chat_selected}>💬 Chatbot Hallucinations</option>
                         <option value="self-driving car glitches" {topic_auto_selected}>🚗 Self-Driving Glitches</option>
                         <option value="algorithm bias and weird predictions" {topic_bias_selected}>🧮 Algorithm Bias</option>
@@ -391,7 +391,7 @@ HTML_DASHBOARD = """
                 <label style="font-size: 12px; color: #888; text-transform: uppercase;">Ziel-Thema</label>
                 <select id="manualTopic" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ddd; margin-top: 5px;">
                     <option value="random">Zufall (KI Rotation)</option>
-                    <option value="AI image generation fails (too many fingers)">🎨 Image Fails</option>
+                    <option value="AI image generation fails">🎨 Image Fails</option>
                     <option value="funny ChatGPT hallucinations">💬 Chatbot Hallucinations</option>
                     <option value="self-driving car glitches">🚗 Self-Driving Glitches</option>
                     <option value="facial recognition mistakes">👤 Facial Recognition Fails</option>
@@ -646,6 +646,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 real_dir = os.path.realpath(os.path.dirname(state_path))
                 os.makedirs(real_dir, exist_ok=True)
 
+                # Existierenden State laden, um nichts zu löschen
                 state = {"last_palette": 0, "total_videos": 0}
                 if os.path.exists(state_path):
                     with open(state_path, "r") as f:
@@ -661,6 +662,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self._send_json({"success": False, "message": str(e)})
 
+        # Speichern der Video-Einstellungen
         elif self.path == "/save_settings":
             if not (session_id and session_id in sessions):
                 self._send_json({"success": False, "message": "Not authenticated"}, 401)
@@ -712,17 +714,32 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     cmd.append(f"--topic={topic}")
 
                 result = subprocess.run(
-                    cmd, capture_output=False, text=True, timeout=300
+                    cmd,
+                    capture_output=False,
+                    text=True,
+                    timeout=300
                 )
                 
                 if result.returncode == 0:
-                    self._send_json({"success": True, "message": "Video posted successfully! Check Logs."})
+                    self._send_json({
+                        "success": True,
+                        "message": "Video posted successfully! Check Logs."
+                    })
                 else:
-                    self._send_json({"success": False, "message": "Bot finished with error code."})
+                    self._send_json({
+                        "success": False,
+                        "message": "Bot finished with error code."
+                    })
             except subprocess.TimeoutExpired:
-                self._send_json({"success": False, "message": "Timeout - bot took too long"})
+                self._send_json({
+                    "success": False,
+                    "message": "Timeout - bot took too long"
+                })
             except Exception as e:
-                self._send_json({"success": False, "message": str(e)})
+                self._send_json({
+                    "success": False,
+                    "message": str(e)
+                })
                 
         elif self.path == "/trigger_test":
             if not (session_id and session_id in sessions):
@@ -740,17 +757,32 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     cmd.append(f"--topic={topic}")
 
                 result = subprocess.run(
-                    cmd, capture_output=False, text=True, timeout=300
+                    cmd,
+                    capture_output=False,
+                    text=True,
+                    timeout=300
                 )
                 
                 if result.returncode == 0:
-                    self._send_json({"success": True, "message": "Test-Video generiert (ohne YouTube Upload)!"})
+                    self._send_json({
+                        "success": True,
+                        "message": "Test-Video generiert (ohne YouTube Upload)!"
+                    })
                 else:
-                    self._send_json({"success": False, "message": "Bot finished with error code."})
+                    self._send_json({
+                        "success": False,
+                        "message": "Bot finished with error code."
+                    })
             except subprocess.TimeoutExpired:
-                self._send_json({"success": False, "message": "Timeout - bot took too long"})
+                self._send_json({
+                    "success": False,
+                    "message": "Timeout - bot took too long"
+                })
             except Exception as e:
-                self._send_json({"success": False, "message": str(e)})
+                self._send_json({
+                    "success": False,
+                    "message": str(e)
+                })
         else:
             self.send_response(404)
             self.end_headers()
@@ -793,6 +825,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         next_post_de = to_de(next_post_utc)
         all_times_de = ", ".join([f"<b>{to_de(t)} MEZ</b>" for t in post_times])
         
+        # State laden für Counter UND Einstellungen
         try:
             with open("/app/logs/state.json") as f:
                 state = json.load(f)
@@ -800,11 +833,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
             video_mode = state.get("video_mode", "classic")
             anim_type = state.get("anim_type", "zoom")
             video_topic = state.get("video_topic", "random")
-            duration = state.get("duration", 13.0)
+            duration = state.get("duration", 10.0)
             drive_enabled = state.get("drive_enabled", True)
         except:
             total_videos = 0
-            video_mode, anim_type, video_topic, duration, drive_enabled = "classic", "zoom", "random", 13.0, True
+            video_mode = "classic"
+            anim_type = "zoom"
+            video_topic = "random"
+            duration = 10.0
+            drive_enabled = True
 
         try:
             with open("/app/logs/bot.log", "r") as f:
@@ -819,14 +856,18 @@ class DashboardHandler(BaseHTTPRequestHandler):
         html = html.replace('{total_videos}', str(total_videos))
         html = html.replace('{logs}', logs)
         
-        # Einstellungen injizieren
+        # Einstellungen in HTML injizieren
         html = html.replace('{duration_value}', str(duration))
         html = html.replace('{mode_classic_selected}', 'selected' if video_mode == 'classic' else '')
         html = html.replace('{mode_3parts_selected}', 'selected' if video_mode == 'three_parts' else '')
         html = html.replace('{mode_word_selected}', 'selected' if video_mode == 'word_by_word' else '')
+        
+        # Animationstypen injizieren
         html = html.replace('{anim_zoom_selected}', 'selected' if anim_type == 'zoom' else '')
         html = html.replace('{anim_static_selected}', 'selected' if anim_type == 'static' else '')
         html = html.replace('{anim_pan_selected}', 'selected' if anim_type == 'pan' else '')
+        
+        # Themen injizieren
         html = html.replace('{topic_random_selected}', 'selected' if video_topic == 'random' else '')
         html = html.replace('{topic_image_selected}', 'selected' if video_topic == 'AI image generation fails (too many fingers)' else '')
         html = html.replace('{topic_chat_selected}', 'selected' if video_topic == 'funny ChatGPT hallucinations' else '')
@@ -835,6 +876,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
         html = html.replace('{topic_service_selected}', 'selected' if video_topic == 'chatbot customer service disasters' else '')
         html = html.replace('{topic_home_selected}', 'selected' if video_topic == 'funny smart home assistant fails' else '')
         html = html.replace('{topic_trans_selected}', 'selected' if video_topic == 'AI translation errors' else '')
+
+        # Drive Status injizieren
         html = html.replace('{drive_enabled_selected}', 'selected' if drive_enabled else '')
         html = html.replace('{drive_disabled_selected}', 'selected' if not drive_enabled else '')
         
@@ -852,13 +895,24 @@ class DashboardHandler(BaseHTTPRequestHandler):
         for item in items:
             raw_text = f"{item.get('title', '')}\\n\\n{item.get('description', '')}"
             encoded_meta = urllib.parse.quote(raw_text)
-            image_btn = f'<a href="/download/{item["image_file"]}" style="color: #e91e63; text-decoration: none; font-weight: bold; font-size: 14px; margin-left: 15px;">🖼️ Bild</a>' if item.get("image_file") else ""
+            
+            image_btn = ""
+            if item.get("image_file"):
+                image_btn = f'<a href="/download/{item["image_file"]}" style="color: #e91e63; text-decoration: none; font-weight: bold; font-size: 14px; margin-left: 15px;">🖼️ Bild</a>'
+            
             rows += f"""
             <tr style="border-bottom: 1px solid #eee;">
                 <td style="padding: 15px; font-size: 14px;">{item.get('timestamp', '')[:10]}</td>
                 <td style="padding: 15px; font-size: 14px;"><b>{item.get('topic', 'General')}</b></td>
-                <td style="padding: 15px;"><a href="/download/{item.get('video_file', '')}" style="color: #43a047; text-decoration: none; font-weight: bold; font-size: 14px;">🎬 Video</a>{image_btn}</td>
-                <td style="padding: 15px;"><button onclick="copyToClipboard('{encoded_meta}')" style="background: #667eea; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">📋 Copy Meta</button></td>
+                <td style="padding: 15px;">
+                    <a href="/download/{item.get('video_file', '')}" style="color: #43a047; text-decoration: none; font-weight: bold; font-size: 14px;">🎬 Video</a>
+                    {image_btn}
+                </td>
+                <td style="padding: 15px;">
+                    <button onclick="copyToClipboard('{encoded_meta}')" style="background: #667eea; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">
+                        📋 Copy Meta
+                    </button>
+                </td>
             </tr>
             """
         
