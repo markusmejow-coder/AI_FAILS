@@ -2,7 +2,7 @@
 generate_image.py
 Creates a 1080x1920 (9:16 vertical) fact image for YouTube Shorts.
 No external image AI needed — pure Python + Pillow.
-Optimized for AI Fails with exact centering and thick top bar.
+This version uses the exact structure of the Mindblown-Pro repo.
 """
 
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -15,10 +15,9 @@ import os
 FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 FONT_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
-# Shorts Standard Auflösung
 W, H = 1080, 1920
 
-# Color palettes — KI rotiert automatisch durch diese Pro-Paletten
+# Color palettes — Spezielle AI Fail Paletten (identische Struktur wie Mindblown)
 PALETTES = [
     {"bg": (15, 15, 5),    "accent": (255, 215, 0),  "text": (255, 255, 255), "sub": (255, 235, 120)}, # Gold
     {"bg": (20, 5, 5),     "accent": (255, 75, 75),   "text": (255, 255, 255), "sub": (255, 150, 150)}, # Red
@@ -98,10 +97,9 @@ def create_base_background(palette_index: int, source_text: str, output_path: st
     img = img.convert("RGB")
     draw = ImageDraw.Draw(img)
 
-    # ── TOP BAR (Der dicke Balken statt Text - wie gewünscht) ──
+    # ── TOP BAR (Der dicke Balken oben - Linksbündig bei 80) ──
     bar_w, bar_h = 320, 60
-    bx = (W - bar_w) // 2
-    by = 130
+    bx, by = 80, 120
     draw.rounded_rectangle([bx, by, bx+bar_w, by+bar_h], radius=15, fill=palette["accent"])
 
     # Linien
@@ -143,7 +141,6 @@ def create_text_layer(text: str, palette_index: int, output_path: str, font_size
 
     line_height = font_size + 20
     total_text_h = len(lines) * line_height
-    
     # VISUAL CENTER FIX: Höhere Positionierung bei y=850 (statt 1090)
     text_y_start = 850 - (total_text_h // 2)
 
@@ -164,7 +161,7 @@ def create_text_layer(text: str, palette_index: int, output_path: str, font_size
 def create_fact_image(fact_text: str, source_text: str,
                       output_path: str, palette_index: int = None):
     """
-    Klassische Funktion für 'Classic' Modus.
+    Klassische Funktion (bleibt unverändert für Kompatibilität).
     """
     if palette_index is None:
         palette_index = random.randint(0, len(PALETTES) - 1)
@@ -184,10 +181,9 @@ def create_fact_image(fact_text: str, source_text: str,
 
     draw = ImageDraw.Draw(img)
 
-    # ── TOP BAR (Der dicke Balken oben statt Text) ──
+    # ── TOP BAR (Der dicke Balken oben - Linksbündig bei 80) ──
     bar_w, bar_h = 320, 60
-    bx = (W - bar_w) // 2
-    by = 130
+    bx, by = 80, 120
     draw.rounded_rectangle([bx, by, bx+bar_w, by+bar_h], radius=15, fill=palette["accent"])
 
     # ── ACCENT LINE ──
@@ -208,7 +204,6 @@ def create_fact_image(fact_text: str, source_text: str,
 
     line_height = fact_font_size + 20
     total_text_h = len(lines) * line_height
-    
     # VISUAL CENTER FIX: Höhere Positionierung bei y=850
     text_y_start = 850 - (total_text_h // 2)
 
@@ -242,12 +237,11 @@ def create_fact_image(fact_text: str, source_text: str,
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     img.save(output_path, "PNG")
-    print(f"  ✅ Image saved: {output_path}")
     return output_path
 
 
 if __name__ == "__main__":
-    # Quick test for pro features
+    # Testlauf für neue Funktionen
     create_base_background(0, "Source: AI Archives", "/tmp/base.png")
-    create_text_layer("An AI once identified a simple turtle as a rifle.", 0, "/tmp/layer.png")
-    print("✅ Test assets created!")
+    create_text_layer("This is a test of the layer system.", 0, "/tmp/layer.png")
+    print("Test assets created!")
