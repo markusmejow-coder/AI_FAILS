@@ -335,7 +335,7 @@ HTML_DASHBOARD = """
         </div>
 
         <div class="card">
-            <h2>⚙️ Video Einstellungen</h2>
+            <h2>⚙️ Video Einstellungen (Retention-Optimierung)</h2>
             <div class="settings-grid">
                 <div class="setting-item">
                     <label>Video Variante (Content)</label>
@@ -348,9 +348,9 @@ HTML_DASHBOARD = """
                 <div class="setting-item">
                     <label>Animations Typ (Bewegung)</label>
                     <select id="animType">
-                        <option value="zoom" {anim_zoom_selected}>Cinematic Zoom</option>
+                        <option value="zoom" {anim_zoom_selected}>Cinematic Zoom (Anti-Jitter)</option>
                         <option value="static" {anim_static_selected}>Statisch (Glitch Look)</option>
-                        <option value="pan" {anim_pan_selected}>Ken-Burns Pan</option>
+                        <option value="pan" {anim_pan_selected}>Slow Pan (Langsamer Schwenk)</option>
                     </select>
                 </div>
                 <div class="setting-item">
@@ -362,6 +362,8 @@ HTML_DASHBOARD = """
                         <option value="self-driving car glitches" {topic_auto_selected}>🚗 Self-Driving Glitches</option>
                         <option value="algorithm bias and weird predictions" {topic_bias_selected}>🧮 Algorithm Bias</option>
                         <option value="chatbot customer service disasters" {topic_service_selected}>📞 Support Disasters</option>
+                        <option value="funny smart home assistant fails" {topic_home_selected}>🏠 Home Assistant Fails</option>
+                        <option value="AI translation errors" {topic_trans_selected}>🌐 Translation Errors</option>
                     </select>
                 </div>
                 <div class="setting-item">
@@ -382,7 +384,7 @@ HTML_DASHBOARD = """
         <div class="card">
             <h2>🚀 Manual Post</h2>
             <div class="info">
-                Wähle ein spezifisches Thema für den manuellen Post.
+                Wähle ein spezifisches Thema oder lass die KI entscheiden.
             </div>
             
             <div style="margin-bottom: 20px;">
@@ -392,6 +394,8 @@ HTML_DASHBOARD = """
                     <option value="AI image generation fails">🎨 Image Fails</option>
                     <option value="funny ChatGPT hallucinations">💬 Chatbot Hallucinations</option>
                     <option value="self-driving car glitches">🚗 Self-Driving Glitches</option>
+                    <option value="facial recognition mistakes">👤 Facial Recognition Fails</option>
+                    <option value="social media algorithm glitches">📱 Social Media Glitches</option>
                 </select>
             </div>
 
@@ -458,7 +462,7 @@ HTML_DASHBOARD = """
             const endpoint = skipYoutube ? '/trigger_test' : '/trigger';
 
             fetch(endpoint, { 
-                method: 'POST', 
+                method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: `topic=${encodeURIComponent(topic)}`
             })
@@ -627,7 +631,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 new_mode = params.get('mode', ['classic'])[0]
                 new_anim = params.get('anim', ['zoom'])[0]
                 new_topic = params.get('topic', ['random'])[0]
-                new_duration = float(params.get('duration', [10.0])[0])
+                new_duration = float(params.get('duration', [13.0])[0])
                 new_drive = params.get('drive', ['true'])[0].lower() == 'true'
 
                 state_path = "/app/logs/state.json"
@@ -782,6 +786,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
         html = html.replace('{topic_auto_selected}', 'selected' if video_topic == 'self-driving car glitches' else '')
         html = html.replace('{topic_bias_selected}', 'selected' if video_topic == 'algorithm bias and weird predictions' else '')
         html = html.replace('{topic_service_selected}', 'selected' if video_topic == 'chatbot customer service disasters' else '')
+        html = html.replace('{topic_home_selected}', 'selected' if video_topic == 'funny smart home assistant fails' else '')
+        html = html.replace('{topic_trans_selected}', 'selected' if video_topic == 'AI translation errors' else '')
         html = html.replace('{drive_enabled_selected}', 'selected' if drive_enabled else '')
         html = html.replace('{drive_disabled_selected}', 'selected' if not drive_enabled else '')
         
@@ -797,7 +803,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         
         rows = ""
         for item in items:
-            raw_text = f"{item.get('title', '')}\n\n{item.get('description', '')}"
+            raw_text = f"{item.get('title', '')}\\n\\n{item.get('description', '')}"
             encoded_meta = urllib.parse.quote(raw_text)
             image_btn = f'<a href="/download/{item["image_file"]}" style="color: #e91e63; text-decoration: none; font-weight: bold; font-size: 14px; margin-left: 15px;">🖼️ Bild</a>' if item.get("image_file") else ""
             rows += f"""
@@ -809,7 +815,46 @@ class DashboardHandler(BaseHTTPRequestHandler):
             </tr>
             """
         
-        html = f"<html><head><meta name='viewport' content='width=device-width, initial-scale=1'><title>Video Archiv</title><style>body {{ font-family: -apple-system, sans-serif; padding: 20px; background: #f5f5f7; color: #333; }} .container {{ max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }} table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }} th {{ text-align: left; color: #888; font-size: 11px; text-transform: uppercase; padding: 10px; border-bottom: 2px solid #f5f5f7; }}</style><script>function copyToClipboard(encodedText) {{ const text = decodeURIComponent(encodedText); navigator.clipboard.writeText(text).then(() => {{ alert('Metadaten kopiert!'); }}).catch(err => {{ alert('Fehler: ' + err); }}); }}</script></head><body><div class='container'><h1 style='color: #667eea;'>📦 Video Archiv</h1><p style='color: #888; font-size: 14px; margin-bottom: 20px;'>Generierte Videos der letzten 30 Tage.</p><table><thead><tr><th>Datum</th><th>Thema</th><th>Video</th><th>Aktion</th></tr></thead><tbody>{rows if rows else "<tr><td colspan='4' style='padding:20px; text-align:center; color:#888;'>Noch keine Videos archiviert</td></tr>"}</tbody></table><hr style='border: 0; border-top: 1px solid #eee; margin: 30px 0;'><a href='/' style='color: #667eea; text-decoration: none; font-weight: bold;'>&larr; Zurück zum Dashboard</a></div></body></html>"
+        html = f"""
+        <html>
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title>Video Archiv</title>
+                <style>
+                    body {{ font-family: -apple-system, sans-serif; padding: 20px; background: #f5f5f7; color: #333; }}
+                    .container {{ max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                    table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
+                    th {{ text-align: left; color: #888; font-size: 11px; text-transform: uppercase; padding: 10px; border-bottom: 2px solid #f5f5f7; }}
+                </style>
+                <script>
+                function copyToClipboard(encodedText) {{
+                    const text = decodeURIComponent(encodedText);
+                    navigator.clipboard.writeText(text).then(() => {{
+                        alert("Metadaten kopiert!");
+                    }}).catch(err => {{
+                        alert("Fehler: " + err);
+                    }});
+                }}
+                </script>
+            </head>
+            <body>
+                <div class="container">
+                    <h1 style="color: #667eea;">📦 Video Archiv</h1>
+                    <p style="color: #888; font-size: 14px; margin-bottom: 20px;">Alle generierten Videos der letzten 30 Tage.</p>
+                    <table>
+                        <thead>
+                            <tr><th>Datum</th><th>Thema</th><th>Video</th><th>Aktion</th></tr>
+                        </thead>
+                        <tbody>
+                            {rows if rows else "<tr><td colspan='4' style='padding:20px; text-align:center; color:#888;'>Noch keine Videos archiviert</td></tr>"}
+                        </tbody>
+                    </table>
+                    <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
+                    <a href="/" style="color: #667eea; text-decoration: none; font-weight: bold; font-family: sans-serif;">&larr; Zurück zum Dashboard</a>
+                </div>
+            </body>
+        </html>
+        """
         self.send_response(200)
         self.send_header("Content-type", "text/html; charset=utf-8")
         self.end_headers()
