@@ -281,6 +281,26 @@ HTML_DASHBOARD = """
             gap: 10px;
             flex-wrap: wrap;
         }
+        /* Neue Styles für Einstellungen */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .setting-item label {
+            display: block;
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        .setting-item select, .setting-item input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
     </style>
 </head>
 <body>
@@ -315,10 +335,66 @@ HTML_DASHBOARD = """
         </div>
 
         <div class="card">
+            <h2>⚙️ Video Einstellungen</h2>
+            <div class="settings-grid">
+                <div class="setting-item">
+                    <label>Video Variante (Content)</label>
+                    <select id="videoMode">
+                        <option value="classic" {mode_classic_selected}>Klassisch (Alles sofort)</option>
+                        <option value="three_parts" {mode_3parts_selected}>Variante 1: 3 Teile (Hook -> Info -> Trigger)</option>
+                        <option value="word_by_word" {mode_word_selected}>Variante 2: Wort für Wort Reveal</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>Animations Typ (Bewegung)</label>
+                    <select id="animType">
+                        <option value="zoom" {anim_zoom_selected}>Cinematic Zoom</option>
+                        <option value="static" {anim_static_selected}>Statisch (Glitch Look)</option>
+                        <option value="pan" {anim_pan_selected}>Ken-Burns Pan</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>Standard Thema (Auto-Modus)</label>
+                    <select id="videoTopic">
+                        <option value="random" {topic_random_selected}>Zufall (KI Rotation)</option>
+                        <option value="AI image generation fails" {topic_image_selected}>🎨 Image Fails</option>
+                        <option value="funny ChatGPT hallucinations" {topic_chat_selected}>💬 Chatbot Hallucinations</option>
+                        <option value="self-driving car glitches" {topic_auto_selected}>🚗 Self-Driving Glitches</option>
+                        <option value="algorithm bias and weird predictions" {topic_bias_selected}>🧮 Algorithm Bias</option>
+                        <option value="chatbot customer service disasters" {topic_service_selected}>📞 Support Disasters</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>Dauer (Sekunden)</label>
+                    <input type="number" id="videoDuration" value="{duration_value}" step="0.5" min="5" max="59">
+                </div>
+                <div class="setting-item">
+                    <label>Google Drive Upload</label>
+                    <select id="driveEnabled">
+                        <option value="true" {drive_enabled_selected}>Aktiviert (Backup)</option>
+                        <option value="false" {drive_disabled_selected}>Deaktiviert (Nur lokal)</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn" onclick="saveSettings()" style="background: #667eea; width: 100%;">Einstellungen Speichern</button>
+        </div>
+
+        <div class="card">
             <h2>🚀 Manual Post</h2>
             <div class="info">
-                ⚠️ Du kannst das Video normal generieren lassen, oder einen Testlauf starten, der den YouTube-Upload überspringt.
+                Wähle ein spezifisches Thema für den manuellen Post.
             </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="font-size: 12px; color: #888; text-transform: uppercase;">Ziel-Thema</label>
+                <select id="manualTopic" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ddd; margin-top: 5px;">
+                    <option value="random">Zufall (KI Rotation)</option>
+                    <option value="AI image generation fails">🎨 Image Fails</option>
+                    <option value="funny ChatGPT hallucinations">💬 Chatbot Hallucinations</option>
+                    <option value="self-driving car glitches">🚗 Self-Driving Glitches</option>
+                </select>
+            </div>
+
             <div class="button-group">
                 <button class="btn" onclick="triggerPost(false)">Create & Post Video Now</button>
                 <button class="btn" onclick="triggerPost(true)" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);">Testlauf (Ohne YouTube)</button>
@@ -348,20 +424,44 @@ HTML_DASHBOARD = """
     </div>
 
     <script>
+        function saveSettings() {
+            const mode = document.getElementById('videoMode').value;
+            const anim = document.getElementById('animType').value;
+            const topic = document.getElementById('videoTopic').value;
+            const duration = document.getElementById('videoDuration').value;
+            const drive = document.getElementById('driveEnabled').value;
+            
+           fetch('/save_settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `mode=${mode}&anim=${anim}&duration=${duration}&drive=${drive}&topic=${encodeURIComponent(topic)}`
+            })
+            .then(r => r.json())
+            .then(data => {
+                alert(data.message);
+                location.reload();
+            })
+            .catch(err => alert('Fehler: ' + err));
+        }
+
         function triggerPost(skipYoutube) {
             const btns = document.querySelectorAll('.btn');
             const result = document.getElementById('result');
             const spinner = document.getElementById('spinner');
+            const topic = document.getElementById('manualTopic').value;
             
             btns.forEach(b => b.disabled = true);
             spinner.classList.add('active');
             result.className = '';
             result.style.display = 'none';
 
-            // Wählt den richtigen Endpunkt basierend auf dem Parameter
             const endpoint = skipYoutube ? '/trigger_test' : '/trigger';
 
-            fetch(endpoint, { method: 'POST' })
+            fetch(endpoint, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `topic=${encodeURIComponent(topic)}`
+            })
                 .then(r => r.json())
                 .then(data => {
                     spinner.classList.remove('active');
@@ -447,42 +547,6 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b"OK")
 
-        elif self.path == "/impressum":
-            self.send_response(200)
-            self.send_header("Content-type", "text/html; charset=utf-8")
-            self.end_headers()
-            impressum_html = """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1">
-                <title>Impressum - AI Fails Bot</title>
-                <style>
-                    body { font-family: -apple-system, sans-serif; line-height: 1.6; padding: 40px; color: #333; max-width: 600px; margin: auto; }
-                    h1 { color: #667eea; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-                    .back-link { display: inline-block; margin-top: 30px; color: #667eea; text-decoration: none; font-weight: bold; }
-                    hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
-                </style>
-            </head>
-            <body>
-                <h1>Impressum</h1>
-                <p><strong>Angaben gemäß § 5 DDG:</strong></p>
-                <p>Markus Mejow<br>
-                Kortenkamp 1<br>
-                48291 Telgte</p>
-                
-                <p><strong>Kontakt:</strong><br>
-                E-Mail: markusmejow@gmail.com</p>
-                
-                <hr>
-                <p><i>Technischer Prototyp zur Demonstration von KI-Automatisierung.</i></p>
-                
-                <a href="/" class="back-link">&larr; Zurück zum Dashboard</a>
-            </body>
-            </html>
-            """
-            self.wfile.write(impressum_html.encode('utf-8'))
-
         elif self.path == "/archive":
             if session_id and session_id in sessions:
                 self._serve_archive_list()
@@ -544,9 +608,44 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
                 state = {"last_palette": (new_count - 1) % 5, "total_videos": new_count}
                 with open(state_path, "w") as f:
-                    json.dump(state, f)
+                    json.dump(state, f, indent=2)
                 
                 self._send_json({"success": True, "message": f"Zähler auf {new_count} gesetzt!"})
+            except Exception as e:
+                self._send_json({"success": False, "message": str(e)})
+
+        elif self.path == "/save_settings":
+            if not (session_id and session_id in sessions):
+                self._send_json({"success": False, "message": "Not authenticated"}, 401)
+                return
+            
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                body = self.rfile.read(content_length).decode()
+                params = urllib.parse.parse_qs(body)
+                
+                new_mode = params.get('mode', ['classic'])[0]
+                new_anim = params.get('anim', ['zoom'])[0]
+                new_topic = params.get('topic', ['random'])[0]
+                new_duration = float(params.get('duration', [10.0])[0])
+                new_drive = params.get('drive', ['true'])[0].lower() == 'true'
+
+                state_path = "/app/logs/state.json"
+                state = {"last_palette": 0, "total_videos": 0}
+                if os.path.exists(state_path):
+                    with open(state_path, "r") as f:
+                        state = json.load(f)
+                
+                state["video_mode"] = new_mode
+                state["anim_type"] = new_anim
+                state["video_topic"] = new_topic
+                state["duration"] = new_duration
+                state["drive_enabled"] = new_drive
+                
+                with open(state_path, "w") as f:
+                    json.dump(state, f, indent=2)
+                
+                self._send_json({"success": True, "message": "Einstellungen gespeichert!"})
             except Exception as e:
                 self._send_json({"success": False, "message": str(e)})
 
@@ -556,68 +655,51 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return
             
             try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                body = self.rfile.read(content_length).decode()
+                params = urllib.parse.parse_qs(body)
+                topic = params.get('topic', ['random'])[0]
+
+                cmd = [sys.executable, "/app/src/bot.py"]
+                if topic != "random":
+                    cmd.append(f"--topic={topic}")
+
                 result = subprocess.run(
-                    [sys.executable, "/app/src/bot.py"],
-                    capture_output=False,
-                    text=True,
-                    timeout=300
+                    cmd, capture_output=False, text=True, timeout=300
                 )
                 
                 if result.returncode == 0:
-                    self._send_json({
-                        "success": True,
-                        "message": "Video posted successfully! Check Logs."
-                    })
+                    self._send_json({"success": True, "message": "Video posted successfully! Check Logs."})
                 else:
-                    self._send_json({
-                        "success": False,
-                        "message": "Bot finished with error code."
-                    })
-            except subprocess.TimeoutExpired:
-                self._send_json({
-                    "success": False,
-                    "message": "Timeout - bot took too long"
-                })
+                    self._send_json({"success": False, "message": "Bot finished with error code."})
             except Exception as e:
-                self._send_json({
-                    "success": False,
-                    "message": str(e)
-                })
+                self._send_json({"success": False, "message": str(e)})
                 
-        # --- NEU: Der Testlauf-Endpunkt ---
         elif self.path == "/trigger_test":
             if not (session_id and session_id in sessions):
                 self._send_json({"success": False, "message": "Not authenticated"}, 401)
                 return
             
             try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                body = self.rfile.read(content_length).decode()
+                params = urllib.parse.parse_qs(body)
+                topic = params.get('topic', ['random'])[0]
+
+                cmd = [sys.executable, "/app/src/bot.py", "--skip-youtube"]
+                if topic != "random":
+                    cmd.append(f"--topic={topic}")
+
                 result = subprocess.run(
-                    [sys.executable, "/app/src/bot.py", "--skip-youtube"],
-                    capture_output=False,
-                    text=True,
-                    timeout=300
+                    cmd, capture_output=False, text=True, timeout=300
                 )
                 
                 if result.returncode == 0:
-                    self._send_json({
-                        "success": True,
-                        "message": "Test-Video generiert (ohne YouTube Upload)!"
-                    })
+                    self._send_json({"success": True, "message": "Test-Video generiert (ohne YouTube Upload)!"})
                 else:
-                    self._send_json({
-                        "success": False,
-                        "message": "Bot finished with error code."
-                    })
-            except subprocess.TimeoutExpired:
-                self._send_json({
-                    "success": False,
-                    "message": "Timeout - bot took too long"
-                })
+                    self._send_json({"success": False, "message": "Bot finished with error code."})
             except Exception as e:
-                self._send_json({
-                    "success": False,
-                    "message": str(e)
-                })
+                self._send_json({"success": False, "message": str(e)})
         else:
             self.send_response(404)
             self.end_headers()
@@ -664,8 +746,14 @@ class DashboardHandler(BaseHTTPRequestHandler):
             with open("/app/logs/state.json") as f:
                 state = json.load(f)
             total_videos = state.get("total_videos", 0)
+            video_mode = state.get("video_mode", "classic")
+            anim_type = state.get("anim_type", "zoom")
+            video_topic = state.get("video_topic", "random")
+            duration = state.get("duration", 13.0)
+            drive_enabled = state.get("drive_enabled", True)
         except:
             total_videos = 0
+            video_mode, anim_type, video_topic, duration, drive_enabled = "classic", "zoom", "random", 13.0, True
 
         try:
             with open("/app/logs/bot.log", "r") as f:
@@ -680,6 +768,23 @@ class DashboardHandler(BaseHTTPRequestHandler):
         html = html.replace('{total_videos}', str(total_videos))
         html = html.replace('{logs}', logs)
         
+        # Einstellungen injizieren
+        html = html.replace('{duration_value}', str(duration))
+        html = html.replace('{mode_classic_selected}', 'selected' if video_mode == 'classic' else '')
+        html = html.replace('{mode_3parts_selected}', 'selected' if video_mode == 'three_parts' else '')
+        html = html.replace('{mode_word_selected}', 'selected' if video_mode == 'word_by_word' else '')
+        html = html.replace('{anim_zoom_selected}', 'selected' if anim_type == 'zoom' else '')
+        html = html.replace('{anim_static_selected}', 'selected' if anim_type == 'static' else '')
+        html = html.replace('{anim_pan_selected}', 'selected' if anim_type == 'pan' else '')
+        html = html.replace('{topic_random_selected}', 'selected' if video_topic == 'random' else '')
+        html = html.replace('{topic_image_selected}', 'selected' if video_topic == 'AI image generation fails' else '')
+        html = html.replace('{topic_chat_selected}', 'selected' if video_topic == 'funny ChatGPT hallucinations' else '')
+        html = html.replace('{topic_auto_selected}', 'selected' if video_topic == 'self-driving car glitches' else '')
+        html = html.replace('{topic_bias_selected}', 'selected' if video_topic == 'algorithm bias and weird predictions' else '')
+        html = html.replace('{topic_service_selected}', 'selected' if video_topic == 'chatbot customer service disasters' else '')
+        html = html.replace('{drive_enabled_selected}', 'selected' if drive_enabled else '')
+        html = html.replace('{drive_disabled_selected}', 'selected' if not drive_enabled else '')
+        
         self.send_response(200)
         self.send_header("Content-type", "text/html; charset=utf-8")
         self.end_headers()
@@ -688,77 +793,23 @@ class DashboardHandler(BaseHTTPRequestHandler):
     def _serve_archive_list(self):
         """Erweiterte Archiv-Liste mit Metadaten und Copy-Button."""
         items = self._get_archive_db()
-        # Sortieren: Neueste zuerst
         items = sorted(items, key=lambda x: x.get('timestamp', ''), reverse=True)
         
         rows = ""
         for item in items:
-            # 100% bombensicheres Escaping für JavaScript via URL-Encoding
             raw_text = f"{item.get('title', '')}\n\n{item.get('description', '')}"
             encoded_meta = urllib.parse.quote(raw_text)
-            
-            # Bild-Button dynamisch einblenden, falls vorhanden
-            image_btn = ""
-            if item.get("image_file"):
-                image_btn = f'<a href="/download/{item["image_file"]}" style="color: #e91e63; text-decoration: none; font-weight: bold; font-size: 14px; margin-left: 15px;">🖼️ Bild</a>'
-            
+            image_btn = f'<a href="/download/{item["image_file"]}" style="color: #e91e63; text-decoration: none; font-weight: bold; font-size: 14px; margin-left: 15px;">🖼️ Bild</a>' if item.get("image_file") else ""
             rows += f"""
             <tr style="border-bottom: 1px solid #eee;">
                 <td style="padding: 15px; font-size: 14px;">{item.get('timestamp', '')[:10]}</td>
                 <td style="padding: 15px; font-size: 14px;"><b>{item.get('topic', 'General')}</b></td>
-                <td style="padding: 15px;">
-                    <a href="/download/{item.get('video_file', '')}" style="color: #43a047; text-decoration: none; font-weight: bold; font-size: 14px;">🎬 Video</a>
-                    {image_btn}
-                </td>
-                <td style="padding: 15px;">
-                    <button onclick="copyToClipboard('{encoded_meta}')" style="background: #667eea; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">
-                        📋 Copy Meta
-                    </button>
-                </td>
+                <td style="padding: 15px;"><a href="/download/{item.get('video_file', '')}" style="color: #43a047; text-decoration: none; font-weight: bold; font-size: 14px;">🎬 Video</a>{image_btn}</td>
+                <td style="padding: 15px;"><button onclick="copyToClipboard('{encoded_meta}')" style="background: #667eea; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">📋 Copy Meta</button></td>
             </tr>
             """
         
-        html = f"""
-        <html>
-            <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1">
-                <title>Video Archiv</title>
-                <style>
-                    body {{ font-family: -apple-system, sans-serif; padding: 20px; background: #f5f5f7; color: #333; }}
-                    .container {{ max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
-                    table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
-                    th {{ text-align: left; color: #888; font-size: 11px; text-transform: uppercase; padding: 10px; border-bottom: 2px solid #f5f5f7; }}
-                </style>
-                <script>
-                function copyToClipboard(encodedText) {{
-                    // Text wird hier wieder entschlüsselt, inklusive aller echten Zeilenumbrüche
-                    const text = decodeURIComponent(encodedText);
-                    navigator.clipboard.writeText(text).then(() => {{
-                        alert("Metadaten (Titel & Beschreibung) kopiert!");
-                    }}).catch(err => {{
-                        alert("Fehler beim Kopieren: " + err);
-                    }});
-                }}
-                </script>
-            </head>
-            <body>
-                <div class="container">
-                    <h1 style="color: #667eea;">📦 Video Archiv</h1>
-                    <p style="color: #888; font-size: 14px; margin-bottom: 20px;">Alle generierten Videos der letzten 30 Tage mit Metadaten.</p>
-                    <table>
-                        <thead>
-                            <tr><th>Datum</th><th>Thema</th><th>Video</th><th>Aktion</th></tr>
-                        </thead>
-                        <tbody>
-                            {rows if rows else "<tr><td colspan='4' style='padding:20px; text-align:center; color:#888;'>Noch keine Videos archiviert</td></tr>"}
-                        </tbody>
-                    </table>
-                    <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
-                    <a href="/" style="color: #667eea; text-decoration: none; font-weight: bold; font-family: sans-serif;">&larr; Zurück zum Dashboard</a>
-                </div>
-            </body>
-        </html>
-        """
+        html = f"<html><head><meta name='viewport' content='width=device-width, initial-scale=1'><title>Video Archiv</title><style>body {{ font-family: -apple-system, sans-serif; padding: 20px; background: #f5f5f7; color: #333; }} .container {{ max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }} table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }} th {{ text-align: left; color: #888; font-size: 11px; text-transform: uppercase; padding: 10px; border-bottom: 2px solid #f5f5f7; }}</style><script>function copyToClipboard(encodedText) {{ const text = decodeURIComponent(encodedText); navigator.clipboard.writeText(text).then(() => {{ alert('Metadaten kopiert!'); }}).catch(err => {{ alert('Fehler: ' + err); }}); }}</script></head><body><div class='container'><h1 style='color: #667eea;'>📦 Video Archiv</h1><p style='color: #888; font-size: 14px; margin-bottom: 20px;'>Generierte Videos der letzten 30 Tage.</p><table><thead><tr><th>Datum</th><th>Thema</th><th>Video</th><th>Aktion</th></tr></thead><tbody>{rows if rows else "<tr><td colspan='4' style='padding:20px; text-align:center; color:#888;'>Noch keine Videos archiviert</td></tr>"}</tbody></table><hr style='border: 0; border-top: 1px solid #eee; margin: 30px 0;'><a href='/' style='color: #667eea; text-decoration: none; font-weight: bold;'>&larr; Zurück zum Dashboard</a></div></body></html>"
         self.send_response(200)
         self.send_header("Content-type", "text/html; charset=utf-8")
         self.end_headers()
