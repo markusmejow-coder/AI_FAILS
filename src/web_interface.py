@@ -357,7 +357,7 @@ HTML_DASHBOARD = """
                     <label>Standard Thema (Auto-Modus)</label>
                     <select id="videoTopic">
                         <option value="random" {topic_random_selected}>Zufall (KI Rotation)</option>
-                        <option value="AI image generation fails" {topic_image_selected}>🎨 Image Fails</option>
+                        <option value="AI image generation fails (too many fingers)" {topic_image_selected}>🎨 Image Fails</option>
                         <option value="funny ChatGPT hallucinations" {topic_chat_selected}>💬 Chatbot Hallucinations</option>
                         <option value="self-driving car glitches" {topic_auto_selected}>🚗 Self-Driving Glitches</option>
                         <option value="algorithm bias and weird predictions" {topic_bias_selected}>🧮 Algorithm Bias</option>
@@ -391,7 +391,7 @@ HTML_DASHBOARD = """
                 <label style="font-size: 12px; color: #888; text-transform: uppercase;">Ziel-Thema</label>
                 <select id="manualTopic" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ddd; margin-top: 5px;">
                     <option value="random">Zufall (KI Rotation)</option>
-                    <option value="AI image generation fails">🎨 Image Fails</option>
+                    <option value="AI image generation fails (too many fingers)">🎨 Image Fails</option>
                     <option value="funny ChatGPT hallucinations">💬 Chatbot Hallucinations</option>
                     <option value="self-driving car glitches">🚗 Self-Driving Glitches</option>
                     <option value="facial recognition mistakes">👤 Facial Recognition Fails</option>
@@ -551,6 +551,42 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b"OK")
 
+        elif self.path == "/impressum":
+            self.send_response(200)
+            self.send_header("Content-type", "text/html; charset=utf-8")
+            self.end_headers()
+            impressum_html = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title>Impressum - AI Fails Bot</title>
+                <style>
+                    body { font-family: -apple-system, sans-serif; line-height: 1.6; padding: 40px; color: #333; max-width: 600px; margin: auto; }
+                    h1 { color: #667eea; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+                    .back-link { display: inline-block; margin-top: 30px; color: #667eea; text-decoration: none; font-weight: bold; }
+                    hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
+                </style>
+            </head>
+            <body>
+                <h1>Impressum</h1>
+                <p><strong>Angaben gemäß § 5 DDG:</strong></p>
+                <p>Markus Mejow<br>
+                Kortenkamp 1<br>
+                48291 Telgte</p>
+                
+                <p><strong>Kontakt:</strong><br>
+                E-Mail: markusmejow@gmail.com</p>
+                
+                <hr>
+                <p><i>Technischer Prototyp zur Demonstration von KI-Automatisierung.</i></p>
+                
+                <a href="/" class="back-link">&larr; Zurück zum Dashboard</a>
+            </body>
+            </html>
+            """
+            self.wfile.write(impressum_html.encode('utf-8'))
+
         elif self.path == "/archive":
             if session_id and session_id in sessions:
                 self._serve_archive_list()
@@ -610,7 +646,14 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 real_dir = os.path.realpath(os.path.dirname(state_path))
                 os.makedirs(real_dir, exist_ok=True)
 
-                state = {"last_palette": (new_count - 1) % 5, "total_videos": new_count}
+                state = {"last_palette": 0, "total_videos": 0}
+                if os.path.exists(state_path):
+                    with open(state_path, "r") as f:
+                        state = json.load(f)
+
+                state["last_palette"] = (new_count - 1) % 5
+                state["total_videos"] = new_count
+                
                 with open(state_path, "w") as f:
                     json.dump(state, f, indent=2)
                 
@@ -631,7 +674,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 new_mode = params.get('mode', ['classic'])[0]
                 new_anim = params.get('anim', ['zoom'])[0]
                 new_topic = params.get('topic', ['random'])[0]
-                new_duration = float(params.get('duration', [13.0])[0])
+                new_duration = float(params.get('duration', [10.0])[0])
                 new_drive = params.get('drive', ['true'])[0].lower() == 'true'
 
                 state_path = "/app/logs/state.json"
@@ -676,6 +719,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     self._send_json({"success": True, "message": "Video posted successfully! Check Logs."})
                 else:
                     self._send_json({"success": False, "message": "Bot finished with error code."})
+            except subprocess.TimeoutExpired:
+                self._send_json({"success": False, "message": "Timeout - bot took too long"})
             except Exception as e:
                 self._send_json({"success": False, "message": str(e)})
                 
@@ -702,6 +747,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     self._send_json({"success": True, "message": "Test-Video generiert (ohne YouTube Upload)!"})
                 else:
                     self._send_json({"success": False, "message": "Bot finished with error code."})
+            except subprocess.TimeoutExpired:
+                self._send_json({"success": False, "message": "Timeout - bot took too long"})
             except Exception as e:
                 self._send_json({"success": False, "message": str(e)})
         else:
@@ -781,7 +828,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         html = html.replace('{anim_static_selected}', 'selected' if anim_type == 'static' else '')
         html = html.replace('{anim_pan_selected}', 'selected' if anim_type == 'pan' else '')
         html = html.replace('{topic_random_selected}', 'selected' if video_topic == 'random' else '')
-        html = html.replace('{topic_image_selected}', 'selected' if video_topic == 'AI image generation fails' else '')
+        html = html.replace('{topic_image_selected}', 'selected' if video_topic == 'AI image generation fails (too many fingers)' else '')
         html = html.replace('{topic_chat_selected}', 'selected' if video_topic == 'funny ChatGPT hallucinations' else '')
         html = html.replace('{topic_auto_selected}', 'selected' if video_topic == 'self-driving car glitches' else '')
         html = html.replace('{topic_bias_selected}', 'selected' if video_topic == 'algorithm bias and weird predictions' else '')
@@ -830,9 +877,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 function copyToClipboard(encodedText) {{
                     const text = decodeURIComponent(encodedText);
                     navigator.clipboard.writeText(text).then(() => {{
-                        alert("Metadaten kopiert!");
+                        alert("Metadaten (Titel & Beschreibung) kopiert!");
                     }}).catch(err => {{
-                        alert("Fehler: " + err);
+                        alert("Fehler beim Kopieren: " + err);
                     }});
                 }}
                 </script>
@@ -840,7 +887,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             <body>
                 <div class="container">
                     <h1 style="color: #667eea;">📦 Video Archiv</h1>
-                    <p style="color: #888; font-size: 14px; margin-bottom: 20px;">Alle generierten Videos der letzten 30 Tage.</p>
+                    <p style="color: #888; font-size: 14px; margin-bottom: 20px;">Alle generierten Videos der letzten 30 Tage mit Metadaten.</p>
                     <table>
                         <thead>
                             <tr><th>Datum</th><th>Thema</th><th>Video</th><th>Aktion</th></tr>
