@@ -2,6 +2,7 @@
 generate_image.py
 Creates a 1200x2133 (high res) AI Fail image for YouTube Shorts.
 Glitch-optimized color palettes for AI Fails & Glitches.
+Includes support for multi-layer rendering (3-parts and word-by-word).
 """
 
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -16,7 +17,7 @@ FONT_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 # High-Res für Anti-Jitter (Faktor 1.11 zu 1080x1920)
 W, H = 1200, 2133
 
-# Glitch-Optimized Color Palettes
+# Glitch-Optimized Color Palettes für AI Fails
 PALETTES = [
     # Danger/Warning (Gelb/Schwarz)
     {"bg": (15, 15, 5),    "accent": (255, 215, 0),  "text": (255, 255, 255), "sub": (255, 235, 120)},
@@ -88,11 +89,11 @@ def wrap_text(text, font, max_width, draw):
 def create_fact_image(fact_text: str, source_text: str,
                       output_path: str, palette_index: int = None):
     """
-    Creates a 1200x2133 high-res AI Fail image.
+    Creates a full 1200x2133 high-res image for 'Classic' mode.
     """
     if palette_index is None:
         palette_index = random.randint(0, len(PALETTES) - 1)
-    palette = PALETTES[palette_index]
+    palette = PALETTES[palette_index % len(PALETTES)]
 
     img = Image.new("RGB", (W, H), palette["bg"])
     draw = draw_gradient_bg(img, palette)
@@ -112,12 +113,11 @@ def create_fact_image(fact_text: str, source_text: str,
     badge_font = ImageFont.truetype(FONT_BOLD, 42)
     badge_text = "🤖  SYSTEM ERROR: AI FAIL"
     bx, by = 90, 135
-    r, g, b = palette["accent"]
     bbox = draw.textbbox((bx, by), badge_text, font=badge_font)
     pad = 22
     draw.rounded_rectangle(
         [bbox[0]-pad, bbox[1]-pad//2, bbox[2]+pad, bbox[3]+pad//2],
-        radius=14, fill=(r, g, b, 40)
+        radius=14, fill=(palette['accent'][0], palette['accent'][1], palette['accent'][2], 40)
     )
     draw.text((bx, by), badge_text, font=badge_font, fill=palette["accent"])
 
@@ -127,11 +127,9 @@ def create_fact_image(fact_text: str, source_text: str,
     fact_font_size = 80
     fact_font = ImageFont.truetype(FONT_BOLD, fact_font_size)
 
-    # UPDATE: max_text_w auf W - 240 erhöht für mehr Seitenabstand
     max_text_w = W - 240 
     lines = wrap_text(fact_text, fact_font, max_text_w, draw)
 
-    # Font-Scaling falls der Text zu lang ist
     while len(lines) > 8 and fact_font_size > 54:
         fact_font_size -= 4
         fact_font = ImageFont.truetype(FONT_BOLD, fact_font_size)
@@ -166,13 +164,69 @@ def create_fact_image(fact_text: str, source_text: str,
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     img.save(output_path, "PNG")
-    print(f"  ✅ AI Fail Image saved: {output_path}")
     return output_path
 
-if __name__ == "__main__":
-    create_fact_image(
-        "A Google AI once identified a simple turtle as a loaded rifle — and it was 100% sure about it.",
-        "Source: AI Research Glitch",
-        "output/test_fail_image.png",
-        palette_index=0
-    )
+
+def create_base_background(palette_index: int, source_text: str, output_path: str):
+    """
+    Creates the background layer (no fact text) for multi-layer rendering.
+    """
+    palette = PALETTES[palette_index % len(PALETTES)]
+    img = Image.new("RGB", (W, H), palette["bg"])
+    draw = draw_gradient_bg(img, palette)
+
+    # Particles
+    overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    draw_particles(ImageDraw.Draw(overlay), palette)
+    img.paste(Image.new("RGB", (W, H)), mask=overlay.split()[3])
+    img = img.convert("RGB")
+    draw = ImageDraw.Draw(img)
+
+    # Badge
+    badge_font = ImageFont.truetype(FONT_BOLD, 42)
+    badge_text = "🤖  SYSTEM ERROR: AI FAIL"
+    draw.text((90, 135), badge_text, font=badge_font, fill=palette["accent"])
+    
+    draw_glow_line(draw, palette, 290)
+    draw_glow_line(draw, palette, 1890)
+
+    # Branding
+    tag_font = ImageFont.truetype(FONT_BOLD, 46)
+    tag_text = "AI Fails & Glitches • Join the Chaos"
+    tx = (W - draw.textbbox((0, 0), tag_text, font=tag_font)[2]) // 2
+    draw.text((tx, 1935), tag_text, font=tag_font, fill=palette["sub"])
+
+    if source_text:
+        src_font = ImageFont.truetype(FONT_REGULAR, 36)
+        sx = (W - draw.textbbox((0, 0), source_text, font=src_font)[2]) // 2
+        draw.text((sx, 2035), source_text, font=src_font, fill=(150, 150, 150))
+
+    img.save(output_path, "PNG")
+    return output_path
+
+
+def create_text_layer(text: str, palette_index: int, output_path: str):
+    """
+    Creates a transparent overlay containing only the text.
+    """
+    palette = PALETTES[palette_index % len(PALETTES)]
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    fact_font_size = 80
+    fact_font = ImageFont.truetype(FONT_BOLD, fact_font_size)
+    max_text_w = W - 240
+    lines = wrap_text(text, fact_font, max_text_w, draw)
+
+    line_height = fact_font_size + 24
+    total_text_h = len(lines) * line_height
+    text_y_start = 360 + (1530 - total_text_h) // 2
+
+    for i, line in enumerate(lines):
+        y = text_y_start + i * line_height
+        bbox = draw.textbbox((0, 0), line, font=fact_font)
+        x = (W - (bbox[2] - bbox[0])) // 2
+        draw.text((x, y), line, font=fact_font, fill=palette["text"])
+
+    img.save(output_path, "PNG")
+    return output_path
