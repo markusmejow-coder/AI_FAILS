@@ -137,7 +137,10 @@ def create_fact_image(fact_text: str, source_text: str,
 
     line_height = fact_font_size + 24
     total_text_h = len(lines) * line_height
-    text_y_start = 360 + (1530 - total_text_h) // 2
+    
+    # FIX: Vertikalen Raum von 1530 auf 1350 reduziert, um Text höher zu schieben
+    # Damit wird Konflikt mit Progress Bar (bei y=1803) vermieden.
+    text_y_start = 360 + (1350 - total_text_h) // 2
 
     for i, line in enumerate(lines):
         y = text_y_start + i * line_height
@@ -220,7 +223,9 @@ def create_text_layer(text: str, palette_index: int, output_path: str):
 
     line_height = fact_font_size + 24
     total_text_h = len(lines) * line_height
-    text_y_start = 360 + (1530 - total_text_h) // 2
+    
+    # FIX: Vertikalen Raum von 1530 auf 1350 reduziert, um Text höher zu schieben
+    text_y_start = 360 + (1350 - total_text_h) // 2
 
     for i, line in enumerate(lines):
         y = text_y_start + i * line_height
