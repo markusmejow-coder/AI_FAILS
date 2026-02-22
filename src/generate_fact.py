@@ -1,6 +1,7 @@
 """
 generate_fact.py
 Uses OpenAI GPT-4o-mini to generate a fresh, viral-worthy AI Fail.
+Includes Archive-Check to prevent repetition of the same content.
 Costs ~0.001€ per call.
 """
 
@@ -42,25 +43,26 @@ Rules:
 
 def generate_fact(api_key: str, topic: str = None) -> dict:
     """
-    Returns: { "fact": str, "source": str, "topic": str, "title": str, "description": str, "tags": list }
+    Returns: { "fact": str, "source": str, "topic": str, "title": str, "description": str, "tags": list, "parts": list, "words": list }
     """
     if topic is None or topic == "random":
         topic = random.choice(TOPICS)
 
-    # REPETITION FIX: Lade die letzten Fakten aus dem Archiv
+    # REPETITION FIX: Lade die letzten Fakten aus dem Archiv, um Dopplungen zu vermeiden
     history_context = ""
     try:
         archive_path = "/data/archive/archive.json"
         if os.path.exists(archive_path):
             with open(archive_path, "r") as f:
                 data = json.load(f)
+                # Wir nehmen die letzten 10 Fail-Inhalte als Ausschlusskriterium
                 recent_fails = [item.get("fact", "") for item in data[-10:]]
                 if recent_fails:
-                    history_context = "IMPORTANT: Do NOT repeat these recent fails: " + " | ".join(recent_fails)
+                    history_context = "IMPORTANT: Do NOT repeat the content of these recent AI fails: " + " | ".join(recent_fails)
     except:
         pass
 
-    user_prompt = f"{history_context}\n\nWrite one fresh, obscure, and hilarious AI fail about: {topic}."
+    user_prompt = f"{history_context}\n\nWrite one fresh, obscure, and hilarious AI fail about: {topic}. Surprise me!"
 
     # First call: get the fail
     fact_response = _call_gpt(
@@ -72,24 +74,24 @@ def generate_fact(api_key: str, topic: str = None) -> dict:
 
     fact_text = fact_response.strip().strip('"')
 
-    # Second call: generate YouTube metadata
+    # Second call: generate YouTube metadata including parts for retention modes
     meta_prompt = f"""For this YouTube Shorts AI Fail video, write:
 Fail: "{fact_text}"
 Topic: "{topic}"
 
-Return ONLY valid JSON with diese exact keys:
+Return ONLY valid JSON with these exact keys:
 {{
   "title": "YouTube title max 60 chars, start with emoji, hook first",
-  "description": "2-3 sentences about this AI glitch, end with a question. Do NOT include hashtags here.",
+  "description": "2-3 sentences about this AI glitch, conversational, end with a question. Do NOT include hashtags here.",
   "tags": ["{topic.replace(' ', '').replace('(', '').replace(')', '')}", "AIFail", "Funny", "Glitches", "Shorts"],
   "source": "Short source credit e.g. 'Source: Reddit'",
-  "parts": ["Hook (max 4 words)", "The fail description", "Final punchline/trigger"],
-  "words": ["List", "of", "all", "words"]
+  "parts": ["Hook (max 4 words)", "The core fail description", "Final punchline/trigger"],
+  "words": ["List", "of", "every", "single", "word", "from", "the", "fail", "text"]
 }}"""
 
     meta_response = _call_gpt(
         api_key=api_key,
-        system="You write YouTube metadata. Return only valid JSON, no markdown.",
+        system="You write YouTube metadata and segment text for viral retention. Return only valid JSON, no markdown.",
         user=meta_prompt,
         max_tokens=500
     )
@@ -112,6 +114,12 @@ Return ONLY valid JSON with diese exact keys:
             "words": fact_text.split()
         }
 
+    # Ensure keys exist
+    if "parts" not in meta or not meta["parts"]:
+        meta["parts"] = ["AI Fails...", fact_text, "Unbelievable."]
+    if "words" not in meta or not meta["words"]:
+        meta["words"] = fact_text.split()
+
     tags_str = " ".join([f"#{t.replace(' ', '')}" for t in meta.get("tags", [])])
     if "#Shorts" not in tags_str:
         tags_str += " #Shorts #AIFails"
@@ -123,17 +131,17 @@ Return ONLY valid JSON with diese exact keys:
         "topic": topic,
         "title": meta.get("title", "🤖 Epic AI Fail"),
         "description": full_description,
-        "tags": meta.get("tags", []),
+        "tags": meta.get("tags", ["AI", "Fail"]),
         "source": meta.get("source", ""),
-        "parts": meta.get("parts", []),
-        "words": meta.get("words", []),
+        "parts": meta.get("parts"),
+        "words": meta.get("words"),
         "generated_at": datetime.now().isoformat()
     }
 
 
 def _call_gpt(api_key: str, system: str, user: str,
               max_tokens: int = 200) -> str:
-    """Raw OpenAI API call via urllib."""
+    """Raw OpenAI API call via urllib (no SDK needed)."""
     payload = json.dumps({
         "model": "gpt-4o-mini",
         "messages": [
@@ -141,7 +149,7 @@ def _call_gpt(api_key: str, system: str, user: str,
             {"role": "user",   "content": user}
         ],
         "max_tokens": max_tokens,
-        "temperature": 1.0 # Höhere Temperatur für mehr Varianz
+        "temperature": 1.0 # Höhere Temperatur für mehr Kreativität/Abwechslung
     }).encode("utf-8")
 
     req = urllib.request.Request(
@@ -161,3 +169,7 @@ def _call_gpt(api_key: str, system: str, user: str,
     except urllib.error.HTTPError as e:
         error_body = e.read().decode()
         raise RuntimeError(f"OpenAI API error {e.code}: {error_body}")
+
+
+if __name__ == "__main__":
+    print("AI Fail generator ready.")
