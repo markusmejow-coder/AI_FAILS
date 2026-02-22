@@ -349,7 +349,7 @@ HTML_DASHBOARD = """
                     <label>Animations Typ (Bewegung)</label>
                     <select id="animType">
                         <option value="zoom" {anim_zoom_selected}>Cinematic Zoom (Anti-Jitter)</option>
-                        <option value="static" {anim_static_selected}>Statisch (MindBlown Look)</option>
+                        <option value="static" {anim_static_selected}>Statisch (Glitch Look)</option>
                         <option value="pan" {anim_pan_selected}>Slow Pan (Langsamer Schwenk)</option>
                     </select>
                 </div>
@@ -357,7 +357,7 @@ HTML_DASHBOARD = """
                     <label>Standard Thema (Auto-Modus)</label>
                     <select id="videoTopic">
                         <option value="random" {topic_random_selected}>Zufall (KI Rotation)</option>
-                        <option value="AI image generation fails" {topic_image_selected}>🎨 Image Fails</option>
+                        <option value="AI image generation fails (too many fingers)" {topic_image_selected}>🎨 Image Fails</option>
                         <option value="funny ChatGPT hallucinations" {topic_chat_selected}>💬 Chatbot Hallucinations</option>
                         <option value="self-driving car glitches" {topic_auto_selected}>🚗 Self-Driving Glitches</option>
                         <option value="algorithm bias and weird predictions" {topic_bias_selected}>🧮 Algorithm Bias</option>
@@ -391,7 +391,7 @@ HTML_DASHBOARD = """
                 <label style="font-size: 12px; color: #888; text-transform: uppercase;">Ziel-Thema</label>
                 <select id="manualTopic" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ddd; margin-top: 5px;">
                     <option value="random">Zufall (KI Rotation)</option>
-                    <option value="AI image generation fails">🎨 Image Fails</option>
+                    <option value="AI image generation fails (too many fingers)">🎨 Image Fails</option>
                     <option value="funny ChatGPT hallucinations">💬 Chatbot Hallucinations</option>
                     <option value="self-driving car glitches">🚗 Self-Driving Glitches</option>
                     <option value="facial recognition mistakes">👤 Facial Recognition Fails</option>
@@ -893,7 +893,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         
         rows = ""
         for item in items:
-            raw_text = f"{item.get('title', '')}\\n\\n{item.get('description', '')}"
+            raw_text = f"{item.get('title', '')}\n\n{item.get('description', '')}"
             encoded_meta = urllib.parse.quote(raw_text)
             
             image_btn = ""
