@@ -48,7 +48,7 @@ def generate_fact(api_key: str, topic: str = None) -> dict:
     if topic is None or topic == "random":
         topic = random.choice(TOPICS)
 
-    # REPETITION FIX: Lade die letzten Fakten aus dem Archiv, um Dopplungen zu vermeiden
+    # REPETITION FIX: Lade die letzten Fakten aus dem Archiv
     history_context = ""
     try:
         archive_path = "/data/archive/archive.json"
@@ -114,7 +114,7 @@ Return ONLY valid JSON with these exact keys:
             "words": fact_text.split()
         }
 
-    # Ensure keys exist
+    # Ensure keys exist for retention modes
     if "parts" not in meta or not meta["parts"]:
         meta["parts"] = ["AI Fails...", fact_text, "Unbelievable."]
     if "words" not in meta or not meta["words"]:
@@ -126,23 +126,22 @@ Return ONLY valid JSON with these exact keys:
     
     full_description = f"{meta.get('description', '')}\n\n{tags_str}"
 
-    # --- FIX: TITEL BEREINIGUNG ---
-    # Sicherstellen, dass der Titel ein String ist und keine [] Artefakte enthält
+    # --- PRO-CLEANING: TITEL BEREINIGUNG ---
+    # Sicherstellen, dass der Titel ein sauberer String ohne Artefakte ist
     raw_title = meta.get("title", "🤖 Epic AI Fail")
     if isinstance(raw_title, list):
-        # Falls GPT eine Liste zurückgegeben hat, nehmen wir das erste Element oder den Default
         final_title = str(raw_title[0]) if raw_title else "🤖 Epic AI Fail"
     else:
         final_title = str(raw_title)
     
-    # Entferne explizit führende '[]' und Leerzeichen, die durch String-Konvertierung entstanden sein könnten
+    # Entferne explizit '[]' falls die KI sie als Text zurückgegeben hat
     final_title = final_title.replace("[]", "").strip()
-    # ------------------------------
+    # --------------------------------------
 
     return {
         "fact": fact_text,
         "topic": topic,
-        "title": final_title, # Nutze den bereinigten Titel
+        "title": final_title,
         "description": full_description,
         "tags": meta.get("tags", ["AI", "Fail"]),
         "source": meta.get("source", ""),
@@ -162,7 +161,7 @@ def _call_gpt(api_key: str, system: str, user: str,
             {"role": "user",   "content": user}
         ],
         "max_tokens": max_tokens,
-        "temperature": 1.0 # Höhere Temperatur für mehr Kreativität/Abwechslung
+        "temperature": 1.0 
     }).encode("utf-8")
 
     req = urllib.request.Request(
