@@ -319,12 +319,12 @@ def render_advanced_video(background_path: str, layer_paths: list, output_path: 
         bg_filter = f"scale=1080:1920,fps={fps},vignette='angle=3.141592/4+0.05*sin(2*3.141592*t/4)'"
 
 
-    # PROGRESS BAR LOGIK: NUR bei statisch! y=H-430 für maximale Sichtbarkeit
+    # PROGRESS BAR LOGIK: NUR bei statisch! 10px hoch, y=H-330 für Sichtbarkeit über YouTube UI
     if anim_type == "static":
         filter_chains = [
             f"[0:v]{bg_filter}[bg_base]",
             f"color=c={accent_hex}@0.9:s=1080x10[bar_src]",
-            f"[bg_base][bar_src]overlay=x='-W+(W*t/{duration})':y=H-430:shortest=1[bg_final]"
+            f"[bg_base][bar_src]overlay=x='-1080+(1080*t/{duration})':y=H-330:shortest=1[bg_final]"
         ]
         last_v_label = "bg_final"
     else:
@@ -403,7 +403,7 @@ def run(skip_youtube=False, topic=None):
     state  = load_state()
 
 
-    # FIX: Falls kein manuelles Thema übergeben wurde, das gespeicherte Standard-Thema nutzen
+    # Falls kein manuelles Thema übergeben wurde, das gespeicherte Standard-Thema nutzen
     if topic is None:
         topic = state.get("video_topic", "random")
         if topic == "random": topic = None
@@ -448,13 +448,14 @@ def run(skip_youtube=False, topic=None):
         fact_data = generate_fact(config["OPENAI_API_KEY"], topic=topic)
 
 
-        log(f"   Topic: {fact_data.get('topic', 'AI Fails')}")
+        log(f"   Topic: {fact_data.get('topic', 'General')}")
 
 
         layers = []
 
 
-        # FIX: Wenn Pan gewählt ist, behandeln wir auch "Classic" als Layer-System
+        # FIX: Wenn Pan gewählt ist, behandeln wir auch "Classic" als Layer-System, 
+        # damit der Text nicht mitschwenkt und zentriert bleibt!
         if mode == "classic" and anim != "pan":
 
 
@@ -552,7 +553,7 @@ def run(skip_youtube=False, topic=None):
 
 
                 start = i * chunk_dur
-                # FIX: Letzter Chunk bleibt bis zum Ende stehen für bessere Lesbarkeit
+                # FIX: Der letzte Block bleibt bis zum Ende stehen
                 end = duration if i == len(chunks) - 1 else (i + 1) * chunk_dur
 
 
@@ -657,7 +658,7 @@ if __name__ == "__main__":
 
     should_skip = "--skip-youtube" in sys.argv
     
-    # Lese das Thema aus den Kommandozeilen-Argumenten
+    # NEU: Lese das Thema aus den Kommandozeilen-Argumenten
     target_topic = None
     for arg in sys.argv:
         if arg.startswith("--topic="):
