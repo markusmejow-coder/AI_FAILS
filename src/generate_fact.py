@@ -126,10 +126,23 @@ Return ONLY valid JSON with these exact keys:
     
     full_description = f"{meta.get('description', '')}\n\n{tags_str}"
 
+    # --- FIX: TITEL BEREINIGUNG ---
+    # Sicherstellen, dass der Titel ein String ist und keine [] Artefakte enthält
+    raw_title = meta.get("title", "🤖 Epic AI Fail")
+    if isinstance(raw_title, list):
+        # Falls GPT eine Liste zurückgegeben hat, nehmen wir das erste Element oder den Default
+        final_title = str(raw_title[0]) if raw_title else "🤖 Epic AI Fail"
+    else:
+        final_title = str(raw_title)
+    
+    # Entferne explizit führende '[]' und Leerzeichen, die durch String-Konvertierung entstanden sein könnten
+    final_title = final_title.replace("[]", "").strip()
+    # ------------------------------
+
     return {
         "fact": fact_text,
         "topic": topic,
-        "title": meta.get("title", "🤖 Epic AI Fail"),
+        "title": final_title, # Nutze den bereinigten Titel
         "description": full_description,
         "tags": meta.get("tags", ["AI", "Fail"]),
         "source": meta.get("source", ""),
