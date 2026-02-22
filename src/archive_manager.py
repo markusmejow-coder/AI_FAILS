@@ -8,11 +8,12 @@ from datetime import datetime
 # Wir leihen uns die fertige Token-Funktion aus deinem YouTube-Skript!
 from youtube_upload import refresh_access_token
 
-# Pfad zum persistenten Volume & Logs
+# Pfad zum persistenten Volume, Logs und State
 ARCHIVE_DIR = "/data/archive" 
 REAL_ARCHIVE_PATH = os.path.realpath(ARCHIVE_DIR)
 DB_FILE = os.path.join(REAL_ARCHIVE_PATH, "archive.json")
 LOG_FILE = "/app/logs/bot.log"
+STATE_FILE = "/app/logs/state.json"
 
 def _log_msg(msg):
     """Schreibt Logs in die Konsole (für Railway) UND in die bot.log (fürs Web-Dashboard)"""
@@ -41,7 +42,19 @@ def _save_db(data):
         json.dump(data, f, indent=4)
 
 def _upload_to_drive(file_path, filename, mime_type="video/mp4"):
-    """Lädt eine Datei per REST API in Google Drive hoch mit dedizierten Drive-Credentials."""
+    """Lädt eine Datei per REST API in Google Drive hoch mit Toggle-Check und dedizierten Credentials."""
+    
+    # 0. Check Drive Toggle aus dem Web-Interface (Pro-Feature)
+    try:
+        if os.path.exists(STATE_FILE):
+            with open(STATE_FILE, "r") as f:
+                state = json.load(f)
+                if not state.get("drive_enabled", True):
+                    _log_msg(f"ℹ️ Google Drive Upload ist deaktiviert.")
+                    return
+    except:
+        pass
+
     folder_id = os.getenv('DRIVE_FOLDER_ID')
     
     # LOGIK: Nutze DRIVE-spezifische Keys (vom Hauptkonto), 
@@ -55,7 +68,7 @@ def _upload_to_drive(file_path, filename, mime_type="video/mp4"):
         return
 
     try:
-        # 1. Frischen Access Token holen (mit den Drive-Keys)
+        # 1. Frischen Access Token holen (mit den dedizierten Drive-Keys)
         access_token = refresh_access_token(client_id, client_secret, refresh_token)
         
         # 2. Upload bei Google anmelden (Resumable)
@@ -138,7 +151,7 @@ def move_to_archive(video_path, fact_data, image_path=None):
         except Exception as txt_err:
             _log_msg(f"⚠️ Fehler beim Erstellen der Drive-Textdatei: {txt_err}")
         
-        # 4. Metadaten lokal in JSON speichern
+        # 4. Metadaten lokal in JSON speichern (Dynamisches Thema!)
         db = _load_db()
         db.append({
             "timestamp": datetime.now().isoformat(),
@@ -146,7 +159,7 @@ def move_to_archive(video_path, fact_data, image_path=None):
             "image_file": new_image_name,
             "title": fact_data.get("title", ""),
             "description": fact_data.get("description", ""),
-            "topic": "AI Fails"
+            "topic": fact_data.get("topic", "AI Fails")
         })
         _save_db(db)
         
