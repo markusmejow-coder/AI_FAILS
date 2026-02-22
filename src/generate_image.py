@@ -127,7 +127,8 @@ def create_fact_image(fact_text: str, source_text: str,
     fact_font_size = 80
     fact_font = ImageFont.truetype(FONT_BOLD, fact_font_size)
 
-    max_text_w = W - 180 
+    # UPDATE: max_text_w auf W - 240 erhöht für mehr Seitenabstand
+    max_text_w = W - 240 
     lines = wrap_text(fact_text, fact_font, max_text_w, draw)
 
     # Font-Scaling falls der Text zu lang ist
